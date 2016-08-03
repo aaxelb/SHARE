@@ -7,6 +7,7 @@ import dateparser
 import json
 import re
 import requests
+import urllib
 
 from share.models.creative import AbstractCreativeWork
 
@@ -27,10 +28,17 @@ def sanitize_for_xml(s):
         return bleach.clean(s, strip=True, tags=[], attributes=[], styles=[])
     return s
 
-class CreativeWorksRSS(Feed):
-    link = '/'
-    description = 'Updates to the SHARE open dataset'
+class ShareAtomFeed(Atom1Feed):
+    def add_root_elements(self, handler):
+        super(ShareAtomFeed, self).add_root_elements(handler)
+        for link in self.feed['links']:
+            handler.addQuickElement('link', '', link)
+
+class CreativeWorksAtom(Feed):
+    feed_type = ShareAtomFeed
+    subtitle = 'Updates to the SHARE open dataset'
     author_name = 'COS'
+    link = '/'
 
     def title(self, obj):
         query = json.dumps(obj.get('query', 'All'))
@@ -38,20 +46,42 @@ class CreativeWorksRSS(Feed):
 
     def get_object(self, request):
         elastic_query = request.GET.get('elasticQuery')
+        page = int(request.GET.get('page', 1))
 
         elastic_data = {
             'sort': { 'date_modified': 'desc' },
-            'from': request.GET.get('from', 0),
+            'from': (page - 1) * RESULTS_PER_PAGE,
             'size': RESULTS_PER_PAGE
         }
         if elastic_query:
             elastic_data['query'] = json.loads(elastic_query)
-        return elastic_data
+
+        return {
+            'elastic_data': elastic_data,
+            'page': page,
+            'self_url': request.build_absolute_uri()
+        }
+
+    def feed_extra_kwargs(self, obj):
+        page = obj['page']
+        url = obj['self_url']
+        separator = '&' if '?' in url else '?'
+        links = [
+            {'href': '{}{}page={}'.format(url, separator, page + 1), 'rel': 'next'},
+        ]
+        if page > 1:
+            links.extend([
+                {'href': '{}{}page={}'.format(url, separator, page - 1), 'rel': 'previous'},
+                {'href': '{}{}page=1'.format(url, separator), 'rel': 'first'}
+            ])
+        return { 'links': links }
 
     def items(self, obj):
+        elastic_data = json.dumps(obj['elastic_data'])
         headers = {'Content-Type': 'application/json'}
-        search_url = '{}{}/abstractcreativework/_search'.format(settings.ELASTICSEARCH_URL, settings.ELASTICSEARCH_INDEX)
-        elastic_response = requests.post(search_url, data=json.dumps(obj), headers=headers)
+        elastic_url = '{}{}/abstractcreativework/_search'.format(settings.ELASTICSEARCH_URL, settings.ELASTICSEARCH_INDEX)
+
+        elastic_response = requests.post(elastic_url, data=elastic_data, headers=headers)
         json_response = elastic_response.json()
 
         if elastic_response.status_code != 200 or 'error' in json_response:
@@ -86,7 +116,3 @@ class CreativeWorksRSS(Feed):
         categories = [item.get('subject')]
         categories.extend(item.get('tags'))
         return [sanitize_for_xml(c) for c in categories if c]
-
-class CreativeWorksAtom(CreativeWorksRSS):
-    feed_type = Atom1Feed
-    subtitle = CreativeWorksRSS.description
