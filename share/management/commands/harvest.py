@@ -13,7 +13,7 @@ from share.provider import ProviderAppConfig
 class Command(BaseCommand):
 
     def add_arguments(self, parser):
-        parser.add_argument('--all', action='store_true', help='Run all harvester')
+        parser.add_argument('--all', action='store_true', help='Run all harvesters')
         parser.add_argument('harvester', nargs='*', type=str, help='The name of the harvester to run')
         parser.add_argument('--async', action='store_true', help='Whether or not to use Celery')
 
@@ -41,7 +41,7 @@ class Command(BaseCommand):
         task_kwargs['start'] = task_kwargs['start'].isoformat() + 'Z'
 
         if not options['harvester'] and options['all']:
-            options['harvester'] = [x.label for x in apps.get_app_configs() if isinstance(x, ProviderAppConfig)]
+            options['harvester'] = [x.label for x in apps.get_app_configs() if isinstance(x, ProviderAppConfig) and not x.disabled]
 
         for harvester in options['harvester']:
             apps.get_app_config(harvester)  # Die if the AppConfig can not be loaded
