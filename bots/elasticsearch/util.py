@@ -34,28 +34,28 @@ def fetch_person(pks):
                     , 'additional_name', person.additional_name
                     , 'sources', sources
                     , 'identifiers', COALESCE(identifiers, '[]' :: JSON)
+                    , 'affiliations', COALESCE(affiliations, '[]' :: JSON)
                 )
-                FROM share_person AS person
+                FROM share_abstractentity AS person
                 LEFT JOIN LATERAL (
                             SELECT json_agg(json_build_object('id', identifier.id, 'uri', identifier.uri)) AS identifiers
-                            FROM share_personidentifier AS identifier
-                            WHERE identifier.person_id = person.id) AS identifiers ON TRUE
+                            FROM share_entityidentifier AS identifier
+                            WHERE identifier.entity_id = person.id) AS identifiers ON TRUE
                 LEFT JOIN LATERAL (
                             SELECT json_agg(
-                                json_build_object('id', entity.id, 'type', entity.type, 'name', entity.name, 'url', entity.url,
-                                                'location', entity.location))
-                            FROM share_affiliation AS affiliation
-                            JOIN share_entity AS entity ON affiliation.entity_id = entity.id
-                            WHERE affiliation.person_id = person.id
+                                json_build_object('id', related_entity.id, 'type', related_entity.type, 'relation_type', relation.type, 'name', related_entity.name, 'location', related_entity.location))
+                            FROM share_abstractentityrelation AS relation
+                            JOIN share_abstractentity AS related_entity ON relation.related_id = related_entity.id
+                            WHERE relation.subject_id = person.id
 
                             ) AS affiliations ON TRUE
                 LEFT JOIN LATERAL (
                             SELECT array_agg(source.long_title) AS sources
-                            FROM share_person_sources AS throughsources
+                            FROM share_abstractentity_sources AS throughsources
                             JOIN share_shareuser AS source ON throughsources.shareuser_id = source.id
-                            WHERE throughsources.person_id = person.id
+                            WHERE throughsources.abstractentity_id = person.id
                             ) AS sources ON TRUE
-                WHERE person.id in %s
+                WHERE person.type = 'share.person' AND person.id in %s
             ''', (tuple(pks), ))
 
             while True:
@@ -125,8 +125,7 @@ def fetch_abstractcreativework(pks):
                     SELECT json_agg(json_build_object(
                         'id', person.id
                         , 'order_cited', contributor.order_cited
-                        , 'bibliographic', contributor.bibliographic
-                        , 'cited_name', contributor.cited_name
+                        , 'cited_as', contributor.cited_name
                         , 'given_name', person.given_name
                         , 'family_name', person.family_name
                         , 'additional_name', person.additional_name
