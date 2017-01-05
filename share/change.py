@@ -104,17 +104,17 @@ class ChangeGraph:
             self.relations[self._lookup[subject]].add(edge)
             self.relations[self._lookup[related]].add(edge)
 
-        self.nodes = TopographicalSorter(self.nodes, dependencies=lambda n: tuple(e.related for e in n.related(backward=False))).sorted()
+        self._sort_nodes()
 
     def prune(self):
         gd = GraphDisambiguator()
         gd.prune(self)
-        self.nodes = TopographicalSorter(self.nodes, dependencies=lambda n: tuple(e.related for e in n.related(backward=False))).sorted()
+        self._sort_nodes()
 
     def disambiguate(self):
         gd = GraphDisambiguator()
         gd.find_instances(self)
-        self.nodes = TopographicalSorter(self.nodes, dependencies=lambda n: tuple(e.related for e in n.related(backward=False))).sorted()
+        self._sort_nodes()
 
     def normalize(self):
         # Freeze nodes to avoid oddities with inserting and removing nodes
@@ -140,7 +140,6 @@ class ChangeGraph:
         if disambiguate:
             gd.find_instances(self)
 
-        self.nodes = TopographicalSorter(self.nodes, dependencies=lambda n: tuple(e.related for e in n.related(backward=False))).sorted()
 
     def get(self, id, type):
         return self._lookup[(id, type)]
@@ -201,6 +200,9 @@ class ChangeGraph:
             n.serialize()
             for n in sorted(self.nodes, key=lambda x: x.type + str(x.id))
         ]
+
+    def _sort_nodes(self):
+        self.nodes = TopographicalSorter(self.nodes, dependencies=lambda n: tuple(e.related for e in n.related(backward=False))).sorted()
 
 
 class ChangeNode:
