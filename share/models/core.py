@@ -230,10 +230,19 @@ class NormalizedData(models.Model):
     id = models.AutoField(primary_key=True)
     created_at = models.DateTimeField(null=True, auto_now_add=True)
     raw = models.ForeignKey(RawData, null=True)
-    # TODO Rename this to data
     data = DateTimeAwareJSONField(validators=[JSONLDValidator(), ])
     source = models.ForeignKey(settings.AUTH_USER_MODEL)
     tasks = models.ManyToManyField('CeleryProviderTask')
+
+    @property
+    def trust(self):
+        # TODO maybe scope trust to allow institution-specific admins, or replace with a 'trust' model field that can change with crowd-sourced voting
+        if self.source.is_trusted:
+            return 1.0
+        if self.source.is_robot:
+            return 0.9
+        raise NotImplementedError('Untrusted data somehow! NormalizedData %s', self.id)
+        #return 0.0
 
     def __str__(self):
         return '{} created at {}'.format(self.source.get_short_name(), self.created_at)
