@@ -13,19 +13,18 @@ logger = logging.getLogger(__name__)
 
 class GraphDisambiguator:
     def prune(self, change_graph):
-        # For each node in the graph, compare to each other node and remove duplicates
-        # compare based on type (one is a subclass of the other), attrs (exact matches), and relations
+        # For each node in the graph, compare to each other node and remove duplicates.
+        # Compare based on type (one is a subclass of the other), attrs (exact matches), and relations.
         return self._disambiguate(change_graph, SelfPruningGraph(change_graph))
 
     def find_instances(self, change_graph):
-        # For each node in the graph, look for a matching instance in the database
+        # For each node in the graph, look for a matching instance in the database.
         return self._disambiguate(change_graph, DatabaseGraph())
 
     def _disambiguate(self, change_graph, compare_graph):
         changed = True
         while changed:
             changed = False
-            # TODO is sorting needed with multiple passes?
             # Sort by type and id as well to get consistent sorting
             nodes = sorted(change_graph.nodes, key=lambda x: (self._disambiguweight(x), x.type, x.id), reverse=True)
             compare_graph.reset()
@@ -43,10 +42,34 @@ class GraphDisambiguator:
         return fk_count if fk_count == 1 else -fk_count
 
 
+class MergingGraph:
+    def __init__(self, change_graph):
+        self._graph = change_graph
+        self._index = NodeIndex(change_graph.nodes)
+
+    def reset(self):
+        pass
+
+    def match(self, node):
+        info = DisambiguationInfo(node)
+        matches = self._index.get_matches(info)
+
+        if not matches:
+            return False
+
+        if len(matches) > 1:
+            # TODO?
+            raise NotImplementedError('Multiple matches while merging change graphs.\nNode: {}\nMatches: {}'.format(node, matches))
+
+        match = matches.pop()
+        # merge nodes, overwriting old values
+
+
+
 class SelfPruningGraph:
     def __init__(self, change_graph):
         self._graph = change_graph
-        self._index = self.NodeIndex()
+        self._index = NodeIndex()
 
     def reset(self):
         # TODO update affected nodes after changes instead of rebuilding the index, maybe get rid of reset()
@@ -103,52 +126,6 @@ class SelfPruningGraph:
             Person.normalize(replacement, replacement.graph)
 
         self._graph.replace(source, replacement)
-
-    class NodeIndex:
-        def __init__(self):
-            self._index = {}
-
-        def clear(self):
-            self._index.clear()
-
-        def add(self, info):
-            by_model = self._index.setdefault(info.model._meta.concrete_model, DictHashingDict())
-            if info.any:
-                all_cache = by_model.setdefault(info.all, DictHashingDict())
-                for item in info.any:
-                    all_cache.setdefault(item, []).append(info)
-            elif info.all:
-                by_model.setdefault(info.all, []).append(info)
-            else:
-                logger.debug('Nothing to disambiguate on. Ignoring node {}'.format(info._node))
-
-        def remove(self, info):
-            try:
-                all_cache = self._index[info.model._meta.concrete_model][info.all]
-                if info.any:
-                    for item in info.any:
-                        all_cache[item].remove(info)
-                else:
-                    all_cache.remove(info)
-            except (KeyError, ValueError) as ex:
-                raise ValueError('Could not remove node from cache: Node {} not found!'.format(info._node)) from ex
-
-        def get_matches(self, info):
-            matches = set()
-            try:
-                matches_all = self._index[info.model._meta.concrete_model][info.all]
-                if info.any:
-                    for item in info.any:
-                        matches.update(matches_all.get(item, []))
-                elif info.all:
-                    matches.update(matches_all)
-                # TODO use `info.tie_breaker` when there are multiple matches
-                if info.matching_types:
-                    return [m for m in matches if m != info and m.model._meta.label_lower in info.matching_types]
-                else:
-                    return [m for m in matches if m != info]
-            except KeyError:
-                return []
 
 
 class DatabaseGraph:
@@ -239,6 +216,60 @@ class DatabaseGraph:
             return ('{}__id'.format(key), value.instance.id)
         except AttributeError:
             return (key, value)
+
+
+class NodeIndex:
+    def __init__(self, nodes=None):
+        self._index = {}
+        if nodes:
+            self.rebuild(nodes)
+
+    def rebuild(self, nodes):
+        self.clear()
+        for n in nodes:
+            self.add(DisambiguationInfo(n))
+
+    def clear(self):
+        self._index.clear()
+
+    def add(self, info):
+        by_model = self._index.setdefault(info.model._meta.concrete_model, DictHashingDict())
+        if info.any:
+            all_cache = by_model.setdefault(info.all, DictHashingDict())
+            for item in info.any:
+                all_cache.setdefault(item, []).append(info)
+        elif info.all:
+            by_model.setdefault(info.all, []).append(info)
+        else:
+            logger.debug('Nothing to disambiguate on. Ignoring node {}'.format(info._node))
+
+    def remove(self, info):
+        try:
+            all_cache = self._index[info.model._meta.concrete_model][info.all]
+            if info.any:
+                for item in info.any:
+                    all_cache[item].remove(info)
+            else:
+                all_cache.remove(info)
+        except (KeyError, ValueError) as ex:
+            raise ValueError('Could not remove node from cache: Node {} not found!'.format(info._node)) from ex
+
+    def get_matches(self, info):
+        matches = set()
+        try:
+            matches_all = self._index[info.model._meta.concrete_model][info.all]
+            if info.any:
+                for item in info.any:
+                    matches.update(matches_all.get(item, []))
+            elif info.all:
+                matches.update(matches_all)
+            # TODO use `info.tie_breaker` when there are multiple matches
+            if info.matching_types:
+                return [m for m in matches if m != info and m.model._meta.label_lower in info.matching_types]
+            else:
+                return [m for m in matches if m != info]
+        except KeyError:
+            return []
 
 
 class DisambiguationInfo:
