@@ -15,11 +15,19 @@ class GraphDisambiguator:
     def prune(self, change_graph):
         # For each node in the graph, compare to each other node and remove duplicates.
         # Compare based on type (one is a subclass of the other), attrs (exact matches), and relations.
-        return self._disambiguate(change_graph, SelfPruningGraph(change_graph))
+        self._disambiguate(change_graph, SelfPruningGraph(change_graph))
+        return change_graph
+
+    def merge(self, base_graph, change_graph):
+        merging_graph = MergingGraph(base_graph)
+        self._disambiguate(change_graph, merging_graph)
+        merging_graph.finish()
+        return base_graph
 
     def find_instances(self, change_graph):
         # For each node in the graph, look for a matching instance in the database.
-        return self._disambiguate(change_graph, DatabaseGraph())
+        self._disambiguate(change_graph, CompareDatabaseGraph())
+        return change_graph
 
     def _disambiguate(self, change_graph, compare_graph):
         changed = True
@@ -42,64 +50,28 @@ class GraphDisambiguator:
         return fk_count if fk_count == 1 else -fk_count
 
 
-class MergingGraph:
+class CompareChangeGraph:
     def __init__(self, change_graph):
         self._graph = change_graph
-        self._index = NodeIndex(change_graph.nodes)
+        self._index = self.NodeIndex()
 
     def reset(self):
         pass
 
     def match(self, node):
-        info = DisambiguationInfo(node)
-        matches = self._index.get_matches(info)
-
+        matches = self._index[node]
         if not matches:
-            return False
-
+            return self._handle_miss(node)
         if len(matches) > 1:
             # TODO?
             raise NotImplementedError('Multiple matches while merging change graphs.\nNode: {}\nMatches: {}'.format(node, matches))
+        return self._handle_hit(node, matches.pop())
 
-        match = matches.pop()
-        # merge nodes, overwriting old values
+    def _handle_hit(self, node, match):
+        raise NotImplementedError()
 
-
-
-class SelfPruningGraph:
-    def __init__(self, change_graph):
-        self._graph = change_graph
-        self._index = NodeIndex()
-
-    def reset(self):
-        # TODO update affected nodes after changes instead of rebuilding the index, maybe get rid of reset()
-        self._index.clear()
-
-    def match(self, node):
-        assert node.graph is self._graph
-
-        info = DisambiguationInfo(node)
-        matches = self._index.get_matches(info)
-        if not matches:
-            self._index.add(info)
-            return False
-
-        if len(matches) > 1:
-            # TODO?
-            raise NotImplementedError('Multiple matches that apparently didn\'t match each other?\nNode: {}\nMatches: {}'.format(node, matches))
-
-        # remove duplicates within the graph
-        match = matches.pop()
-        if info.model != match.model and issubclass(info.model, match.model):
-            # remove the node with the less-specific class
-            logger.debug('Found duplicate! Keeping {}, pruning {}'.format(info, match))
-            self._index.remove(match)
-            self._merge_nodes(match._node, node)
-            self._index.add(info)
-        else:
-            logger.debug('Found duplicate! Keeping {}, pruning {}'.format(match, node))
-            self._merge_nodes(node, match._node)
-        return True
+    def _handle_miss(self, node):
+        raise NotImplementedError()
 
     def _merge_nodes(self, source, replacement):
         assert source.graph is self._graph
@@ -127,10 +99,148 @@ class SelfPruningGraph:
 
         self._graph.replace(source, replacement)
 
+    class NodeIndex:
+        def __init__(self, nodes=None):
+            self._index = {}
+            self._info_cache = {}
+            if nodes:
+                self.rebuild(nodes)
 
-class DatabaseGraph:
-    # TODO: what happens when two (apparently) non-duplicate nodes disambiguate to the same instance?
+        def rebuild(self, nodes):
+            self.clear()
+            for n in nodes:
+                self.add(n)
 
+        def clear(self):
+            self._index.clear()
+            self._info_cache.clear()
+
+        def add(self, node):
+            """Add a node or nodes to the index."""
+            try:
+                iterator = iter(node)
+            except TypeError:
+                self._add(node)
+            else:
+                for n in iterator:
+                    self._add(n)
+
+        def _add(self, node):
+            assert node not in self._info_cache
+            info = self._get_info(node)
+            by_model = self._index.setdefault(info.model._meta.concrete_model, DictHashingDict())
+            if info.any:
+                all_cache = by_model.setdefault(info.all, DictHashingDict())
+                for item in info.any:
+                    all_cache.setdefault(item, []).append(node)
+            elif info.all:
+                by_model.setdefault(info.all, []).append(node)
+            else:
+                logger.debug('Nothing to disambiguate on. Ignoring node {}'.format(node))
+
+        def remove(self, node):
+            assert node in self._info_cache
+            info = self._get_info(node)
+            try:
+                all_cache = self._index[info.model._meta.concrete_model][info.all]
+                if info.any:
+                    for item in info.any:
+                        all_cache[item].remove(node)
+                else:
+                    all_cache.remove(node)
+                self._info_cache.pop(node)
+            except (KeyError, ValueError) as ex:
+                raise ValueError('Could not remove node from cache: Node {} not found!'.format(info._node)) from ex
+
+        def __getitem__(self, node):
+            info = self._get_info(node)
+            matches = set()
+            try:
+                matches_all = self._index[info.model._meta.concrete_model][info.all]
+                if info.any:
+                    for item in info.any:
+                        matches.update(matches_all.get(item, []))
+                elif info.all:
+                    matches.update(matches_all)
+                # TODO use `info.tie_breaker` when there are multiple matches
+                if info.matching_types:
+                    return [m for m in matches if m != node and m.model._meta.label_lower in info.matching_types]
+                else:
+                    return [m for m in matches if m != node]
+            except KeyError:
+                return []
+
+        def _get_info(self, node):
+            try:
+                return self._info_cache[node]
+            except KeyError:
+                info = DisambiguationInfo(node)
+                self._info_cache[node] = info
+                return info
+
+
+class MergingGraph(CompareChangeGraph):
+    def __init__(self, change_graph):
+        super().__init__(change_graph)
+        self._index.add(self._graph.nodes)
+        self._merged = {}
+        self._unmerged = set()
+
+    def match(self, node):
+        if node in self._merged:
+            return False
+        return super().match(node)
+
+    def finish(self):
+        for n in self._unmerged:
+            merged = self._graph.create(n.id, n.type, n.attrs)
+            self._merged[n] = merged
+
+        # TODO allow removing relations, somehow
+        for n, m in self._merged.items():
+            for edge in n.related(backward=False):
+                self._graph.relate(m, self._merged[edge.related], edge._hint)
+
+    def _handle_hit(self, node, match):
+        # TODO preserve node namespace... allow heterogeneous ChangeGraph
+        merged_node = self._graph.create(node.id, node.type, node.attrs)
+        # TODO attrs from more trusted sources should always win
+        self._merge_nodes(match, merged_node)
+
+        self._merged[node] = merged_node
+        self._unmerged.discard(node)
+
+        # TODO update only the affected parts of the index instead of rebuilding
+        self._index.rebuild(self._graph.nodes)
+
+    def _handle_miss(self, node):
+        self._unmerged.add(node)
+        return False
+
+
+class SelfPruningGraph(CompareChangeGraph):
+    def reset(self):
+        self._index.clear()
+
+    def _handle_hit(self, node, match):
+        # remove duplicates within the graph
+        if node.model != match.model and issubclass(node.model, match.model):
+            # remove the node with the less-specific class
+            logger.debug('Found duplicate! Keeping {}, pruning {}'.format(node, match))
+            self._index.remove(match)
+            self._merge_nodes(match._node, node)
+            self._index.add(node)
+        else:
+            logger.debug('Found duplicate! Keeping {}, pruning {}'.format(match, node))
+            self._merge_nodes(node, match._node)
+        return True
+
+    def _handle_miss(self, node):
+        self._index.add(node)
+        return False
+
+
+class CompareDatabaseGraph:
     def reset(self):
         pass
 
@@ -151,6 +261,8 @@ class DatabaseGraph:
         #         raise NotImplementedError('Multiple matches found', n, same_type)
         #     logger.warning('Found multiple matches for %s, but only one of type %s, fortunately.', n, n.model)
         #     instance = same_type.pop()
+
+        # TODO: what happens when two (apparently) non-duplicate nodes disambiguate to the same instance?
         if instance:
             node.instance = instance
             logger.debug('Disambiguated %s to %s', node, instance)
@@ -218,60 +330,6 @@ class DatabaseGraph:
             return (key, value)
 
 
-class NodeIndex:
-    def __init__(self, nodes=None):
-        self._index = {}
-        if nodes:
-            self.rebuild(nodes)
-
-    def rebuild(self, nodes):
-        self.clear()
-        for n in nodes:
-            self.add(DisambiguationInfo(n))
-
-    def clear(self):
-        self._index.clear()
-
-    def add(self, info):
-        by_model = self._index.setdefault(info.model._meta.concrete_model, DictHashingDict())
-        if info.any:
-            all_cache = by_model.setdefault(info.all, DictHashingDict())
-            for item in info.any:
-                all_cache.setdefault(item, []).append(info)
-        elif info.all:
-            by_model.setdefault(info.all, []).append(info)
-        else:
-            logger.debug('Nothing to disambiguate on. Ignoring node {}'.format(info._node))
-
-    def remove(self, info):
-        try:
-            all_cache = self._index[info.model._meta.concrete_model][info.all]
-            if info.any:
-                for item in info.any:
-                    all_cache[item].remove(info)
-            else:
-                all_cache.remove(info)
-        except (KeyError, ValueError) as ex:
-            raise ValueError('Could not remove node from cache: Node {} not found!'.format(info._node)) from ex
-
-    def get_matches(self, info):
-        matches = set()
-        try:
-            matches_all = self._index[info.model._meta.concrete_model][info.all]
-            if info.any:
-                for item in info.any:
-                    matches.update(matches_all.get(item, []))
-            elif info.all:
-                matches.update(matches_all)
-            # TODO use `info.tie_breaker` when there are multiple matches
-            if info.matching_types:
-                return [m for m in matches if m != info and m.model._meta.label_lower in info.matching_types]
-            else:
-                return [m for m in matches if m != info]
-        except KeyError:
-            return []
-
-
 class DisambiguationInfo:
     def __init__(self, node):
         self._node = node
@@ -319,9 +377,9 @@ class DisambiguationInfo:
         if field.is_relation:
             if field.one_to_many:
                 for edge in self._node.related(name=field_name, forward=False):
-                    yield edge.subject
+                    yield edge.subject.id
             elif field.many_to_one:
-                yield self._node.related(name=field_name, backward=False).related
+                yield self._node.related(name=field_name, backward=False).related.id
             elif field.many_to_many:
                 # TODO?
                 raise NotImplementedError()

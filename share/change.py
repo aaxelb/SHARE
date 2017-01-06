@@ -116,6 +116,11 @@ class ChangeGraph:
         gd.find_instances(self)
         self._sort_nodes()
 
+    def merge(self, other_graph):
+        gd = GraphDisambiguator()
+        gd.merge(self, other_graph)
+        self._sort_nodes()
+
     def normalize(self):
         # Freeze nodes to avoid oddities with inserting and removing nodes
         for node in tuple(self.nodes):
@@ -139,7 +144,6 @@ class ChangeGraph:
 
         if disambiguate:
             gd.find_instances(self)
-
 
     def get(self, id, type):
         return self._lookup[(id, type)]
