@@ -4,7 +4,7 @@ import pendulum
 from django.db.models import Q, DateTimeField
 from django.core.exceptions import ValidationError
 
-from share.util import DictHashingDict
+from share.util import DictHashingDict, IDObfuscator, InvalidID
 
 __all__ = ('GraphDisambiguator', )
 
@@ -116,17 +116,6 @@ class CompareChangeGraph:
             self._info_cache.clear()
 
         def add(self, node):
-            """Add a node or nodes to the index."""
-            try:
-                iterator = iter(node)
-            except TypeError:
-                self._add(node)
-            else:
-                for n in iterator:
-                    self._add(n)
-
-        def _add(self, node):
-            assert node not in self._info_cache
             info = self._get_info(node)
             by_model = self._index.setdefault(info.model._meta.concrete_model, DictHashingDict())
             if info.any:
@@ -139,7 +128,6 @@ class CompareChangeGraph:
                 logger.debug('Nothing to disambiguate on. Ignoring node {}'.format(node))
 
         def remove(self, node):
-            assert node in self._info_cache
             info = self._get_info(node)
             try:
                 all_cache = self._index[info.model._meta.concrete_model][info.all]
@@ -150,7 +138,7 @@ class CompareChangeGraph:
                     all_cache.remove(node)
                 self._info_cache.pop(node)
             except (KeyError, ValueError) as ex:
-                raise ValueError('Could not remove node from cache: Node {} not found!'.format(info._node)) from ex
+                raise ValueError('Could not remove node from cache: Node {} not found!'.format(node)) from ex
 
         def __getitem__(self, node):
             info = self._get_info(node)
@@ -182,7 +170,7 @@ class CompareChangeGraph:
 class MergingGraph(CompareChangeGraph):
     def __init__(self, change_graph):
         super().__init__(change_graph)
-        self._index.add(self._graph.nodes)
+        self._index.rebuild(self._graph.nodes)
         self._merged = {}
         self._unmerged = set()
 
@@ -228,11 +216,11 @@ class SelfPruningGraph(CompareChangeGraph):
             # remove the node with the less-specific class
             logger.debug('Found duplicate! Keeping {}, pruning {}'.format(node, match))
             self._index.remove(match)
-            self._merge_nodes(match._node, node)
+            self._merge_nodes(match, node)
             self._index.add(node)
         else:
             logger.debug('Found duplicate! Keeping {}, pruning {}'.format(match, node))
-            self._merge_nodes(node, match._node)
+            self._merge_nodes(node, match)
         return True
 
     def _handle_miss(self, node):
@@ -278,7 +266,7 @@ class CompareDatabaseGraph:
 
         all_query = Q()
         for k, v in info.all:
-            k, v = self._query_pair(k, v)
+            k, v = self._query_pair(k, v, info)
             if k and v:
                 all_query &= Q(**{k: v})
             else:
@@ -286,7 +274,7 @@ class CompareDatabaseGraph:
 
         queries = []
         for k, v in info.any:
-            k, v = self._query_pair(k, v)
+            k, v = self._query_pair(k, v, info)
             if k and v:
                 queries.append(all_query & Q(**{k: v}))
 
@@ -321,13 +309,14 @@ class CompareDatabaseGraph:
         logger.error('Could not disambiguate %s. Too many results found from %s %s', info.model, all_query, queries)
         raise NotImplementedError('Multiple {0}s found'.format(info.model))
 
-    def _query_pair(self, key, value):
-        try:
-            if not value.instance:
+    def _query_pair(self, key, value, info):
+        field = info._node.model._meta.get_field(key)
+        if field.is_relation:
+            try:
+                return ('{}__id'.format(key), IDObfuscator.decode_id(value))
+            except InvalidID:
                 return (None, None)
-            return ('{}__id'.format(key), value.instance.id)
-        except AttributeError:
-            return (key, value)
+        return (key, value)
 
 
 class DisambiguationInfo:

@@ -50,10 +50,9 @@ class TestMergeChangeGraph:
             ])
         ]),
     ])
-    def test_merge(self, Graph, inputs, output):
+    def test_merge_change_graphs(self, Graph, inputs, output):
         first, *graphs = [ChangeGraph(Graph(*input)) for input in inputs]
-        gd = GraphDisambiguator
         for g in graphs:
-            gd.merge(first, g)
+            first.merge(g)
         result = [n.serialize() for n in sorted(first.nodes, key=lambda x: x.type + str(x.id))]
         assert result == Graph(*output)

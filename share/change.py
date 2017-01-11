@@ -84,7 +84,7 @@ class ChangeGraph:
             self.nodes.append(self._lookup[id, type])
 
             for k, v in tuple(blob.items()):
-                if isinstance(v, dict) and k != 'extra' and not k.startswith('@'):
+                if isinstance(v, dict) and k not in ('extra', 'same_as') and not k.startswith('@'):
                     related = (v.pop('@id'), v.pop('@type').lower())
                     hints[(id, type), related] = k
                     relations.add(((id, type), related))
@@ -144,6 +144,9 @@ class ChangeGraph:
 
         if disambiguate:
             gd.find_instances(self)
+            self._process_same_as()
+
+        self._sort_nodes()
 
     def get(self, id, type):
         return self._lookup[(id, type)]
@@ -204,6 +207,33 @@ class ChangeGraph:
             n.serialize()
             for n in sorted(self.nodes, key=lambda x: x.type + str(x.id))
         ]
+
+    def _process_same_as(self):
+        try:
+            # TODO support multiple merges in one submission
+            merge_node = next(n for n in self.nodes if n.same_as)
+        except StopIteration:
+            return self
+        # TODO proper exceptions
+        assert merge_node.instance
+        same_as = IDObfuscator.resolve(merge_node.attrs['same_as']['@id'])
+        assert merge_node.instance._meta.concrete_model == same_as._meta.concrete_model
+        if merge_node.instance.id == same_as.id:
+            # well, you're not wrong
+            merge_node.attrs.pop('same_as')
+            return self
+        datums = [d for d in NormalizedData.objects.data_for_object(o) for o in (merge_node.instance, same_as)]
+        merged, *graphs = [ChangeGraph(d) for d in sorted(datums, key=lambda d: (d.trust, d.id))]
+        for g in graphs:
+            # TODO higher trust always overwrites
+            merged.merge(g)
+        merged.merge(self)
+
+        # TODO something less hacky?
+        self.nodes = merged.nodes
+        self.relations = merged.relations
+        self._lookup = merged._lookup
+        # self.namespace = merged.namespace
 
     def _sort_nodes(self):
         self.nodes = TopographicalSorter(self.nodes, dependencies=lambda n: tuple(e.related for e in n.related(backward=False))).sorted()
@@ -282,6 +312,7 @@ class ChangeNode:
         if self.instance and type(self.instance) is not self.model:
             changes['type'] = self.model._meta.label_lower
 
+        # TODO Emit subtractive changes
         attrs = {}
         for k, v in self.attrs.items():
             old_value = getattr(self.instance, k)
@@ -300,6 +331,7 @@ class ChangeNode:
         self.instance = None
         self.attrs = attrs
         self.extra = attrs.pop('extra', {})
+        self.same_as = attrs.pop('same_as', {})
         self.context = attrs.pop('@context', {})
         self.namespace = namespace
 

@@ -26,7 +26,7 @@ initial = [
         ]
     ),
     CreativeWork(
-        identifiers=[WorkIdentifier(2)],
+        identifiers=[WorkIdentifier(3)],
         related_agents=[
             Institution(),
             Consortium(name='COS'),
@@ -34,7 +34,7 @@ initial = [
         ]
     ),
     Publication(
-        identifiers=[WorkIdentifier(3)],
+        identifiers=[WorkIdentifier(4)],
         agent_relations=[
             Creator(agent=Organization(7))
         ],
@@ -43,12 +43,12 @@ initial = [
                 agent_relations=[
                     Contributor(agent=Institution(8))
                 ],
-                identifiers=[WorkIdentifier(4)]
+                identifiers=[WorkIdentifier(5)]
             )
         ]
     ),
     Report(
-        identifiers=[WorkIdentifier(4)],
+        identifiers=[WorkIdentifier(5)],
         agent_relations=[
             Creator(agent=Person(name='Berkeley')),
             Publisher(agent=Institution(name='Berkeley'))

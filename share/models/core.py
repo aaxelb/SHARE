@@ -7,8 +7,9 @@ from hashlib import sha256
 from django.conf import settings
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.contrib.auth.models import PermissionsMixin, Group
+from django.contrib.contenttypes.models import ContentType
 from django.core import validators
-from django.db import models
+from django.db import models, connection
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
@@ -226,6 +227,19 @@ class RawData(models.Model):
         return '<{}({}, {})>'.format(self.__class__.__name__, self.source, self.provider_doc_id)
 
 
+class NormalizedDataManager(FuzzyCountManager):
+    def data_for_object(self, obj):
+        # TODO anything to avoid all these joins, or even touching share_change
+        # TODO allow multiple rows from non-robot sources
+        return self.raw('''
+            select distinct on (nd.source_id) nd.* FROM share_normalizeddata nd
+            join share_changeset cs on nd.id = cs.normalized_data_id
+            join share_change c on cs.id = c.change_set_id
+            where c.target_id = %s and c.target_type_id = %s
+            order by nd.source_id, nd.created_at desc nulls last, nd.id desc;
+        ''', [obj.id, ContentType.objects.get_for_model(obj).id])
+
+
 class NormalizedData(models.Model):
     id = models.AutoField(primary_key=True)
     created_at = models.DateTimeField(null=True, auto_now_add=True)
@@ -234,15 +248,16 @@ class NormalizedData(models.Model):
     source = models.ForeignKey(settings.AUTH_USER_MODEL)
     tasks = models.ManyToManyField('CeleryProviderTask')
 
+    objects = NormalizedDataManager()
+
     @property
     def trust(self):
-        # TODO maybe scope trust to allow institution-specific admins, or replace with a 'trust' model field that can change with crowd-sourced voting
+        # TODO maybe scope trust to allow institution-specific admins, or replace property with a field that can change with crowd-sourced voting
         if self.source.is_trusted:
             return 1.0
         if self.source.is_robot:
             return 0.9
         raise NotImplementedError('Untrusted data somehow! NormalizedData %s', self.id)
-        #return 0.0
 
     def __str__(self):
         return '{} created at {}'.format(self.source.get_short_name(), self.created_at)
