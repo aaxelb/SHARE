@@ -69,7 +69,7 @@ class GraphEdge:
 
 class ChangeGraph:
 
-    def __init__(self, data, namespace=None):
+    def __init__(self, data, namespace=None, certainty=0.9):
         self.nodes = []
         self.relations = {}
         self._lookup = {}

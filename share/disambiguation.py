@@ -10,6 +10,37 @@ __all__ = ('GraphDisambiguator', )
 
 logger = logging.getLogger(__name__)
 
+class FrankenGraph:
+    """
+    Take many ChangeGraphs, spit out one big graph.
+    """
+
+    INDEX_CERTAINTY = 0.95
+
+    def __init__(self):
+        self._graphs = []
+        self._fnodes = []
+
+        # map from ChangeNode to the FrankenNode that contains it
+        self._fnode_map = {}
+
+    def add(self, graph):
+        self._graphs.append(graph)
+
+    def collapse(self):
+        """Return merged graph"""
+        pass
+
+    class FrankenNode:
+        def __init__(self):
+            self.nodes = []
+
+        @property
+        def instances(self):
+            return set(n.instance for n in self.nodes if n.instance)
+
+        def collapse(self):
+            """Return merged node"""
 
 class GraphDisambiguator:
     def prune(self, change_graph):
@@ -18,7 +49,7 @@ class GraphDisambiguator:
         self._disambiguate(change_graph, SelfPruningGraph(change_graph))
         return change_graph
 
-    def merge(self, base_graph, change_graph):
+    def merge(self, *graphs):
         merging_graph = MergingGraph(base_graph)
         self._disambiguate(change_graph, merging_graph)
         merging_graph.finish()
@@ -41,6 +72,7 @@ class GraphDisambiguator:
                     changed = True
 
     def _disambiguweight(self, node):
+        # Heuristic to reduce number of passes in _disambiguate.
         # Models with exactly 1 foreign key field (excluding those added by
         # ShareObjectMeta) are disambiguated first, because they might be used
         # to uniquely identify the object they point to. Then do the models with
@@ -169,7 +201,8 @@ class CompareChangeGraph:
 
 class MergingGraph(CompareChangeGraph):
     def __init__(self, change_graph):
-        super().__init__(change_graph)
+        super().__init__()
+        self._graph = change_graph
         self._index.rebuild(self._graph.nodes)
         self._merged = {}
         self._unmerged = set()
