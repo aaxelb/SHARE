@@ -171,15 +171,11 @@ class OAICreativeWork(Parser):
         tools.Delegate(OAIThroughSubjects),
         tools.Subjects(
             tools.Map(
-                tools.RunPython('tokenize'),
-                tools.RunPython(
-                    'force_text',
-                    tools.Concat(
-                        tools.Try(ctx.record.header.setSpec),
-                        tools.Try(ctx.record.metadata.dc['dc:type']),
-                        tools.Try(ctx.record.metadata.dc['dc:format']),
-                        tools.Try(ctx.record.metadata.dc['dc:subject']),
-                    )
+                tools.RunPython('force_text'),
+                tools.Concat(
+                    tools.Try(ctx.record.header.setSpec),
+                    tools.Try(ctx.record.metadata.dc['dc:type']),
+                    tools.Try(ctx.record.metadata.dc['dc:subject']),
                 )
             )
         )
@@ -189,15 +185,11 @@ class OAICreativeWork(Parser):
         tools.Delegate(OAIThroughTags),
         tools.Concat(
             tools.Map(
-                tools.RunPython('tokenize'),
-                tools.RunPython(
-                    'force_text',
-                    tools.Concat(
-                        tools.Try(ctx.record.header.setSpec),
-                        tools.Try(ctx.record.metadata.dc['dc:type']),
-                        tools.Try(ctx.record.metadata.dc['dc:format']),
-                        tools.Try(ctx.record.metadata.dc['dc:subject']),
-                    )
+                tools.RunPython('force_text'),
+                tools.Concat(
+                    tools.Try(ctx.record.header.setSpec),
+                    tools.Try(ctx.record.metadata.dc['dc:type']),
+                    tools.Try(ctx.record.metadata.dc['dc:subject']),
                 )
             ),
             deep=True
@@ -291,14 +283,6 @@ class OAICreativeWork(Parser):
             else:
                 raise Exception(datum)
         return fixed
-
-    def tokenize(self, data):
-        if isinstance(data, str):
-            data = [data]
-        tokens = []
-        for item in data:
-            tokens.extend([x.strip() for x in re.split(r'(?: - )|\.|,', item) if x])
-        return tokens
 
     def get_relation(self, ctx):
         if not ctx['record'].get('metadata'):
