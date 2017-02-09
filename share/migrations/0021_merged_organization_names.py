@@ -8,7 +8,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('share', '0020_auto_20170206_2114'),
+        ('share', '0020_auto_20170209_1422'),
     ]
 
     # Add 'same_as_id IS NOT NULL' condition

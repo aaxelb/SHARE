@@ -12,24 +12,25 @@ from tests.share.normalize.factories import *
 
 initial_works = [
     Preprint(
-        tags=[Tag(name=' Science')],
+        tags=[Tag(name=' Science'), Tag(name='Pancakes')],
         identifiers=[WorkIdentifier(1)],
         related_agents=[
             Person(1, identifiers=[AgentIdentifier(1)]),
             Person(2),
             Person(3),
             Institution(4),
+            Organization(8, name='Aperture Science'),
         ],
         related_works=[
             Article(tags=[Tag(name='Science\n; Stuff')], identifiers=[WorkIdentifier(2)])
         ]
     ),
     CreativeWork(
-        tags=[Tag(name='Ghosts N Stuff')],
+        tags=[Tag(name='Ghosts N Stuff'), Tag(name='Pancakes')],
         identifiers=[WorkIdentifier(3)],
         related_agents=[
             Person(5),
-            Person(6),
+            Person(2),
             Person(7, identifiers=[AgentIdentifier(2)]),
             Organization(8, name='Aperture Science'),
             Institution(9),
@@ -39,7 +40,7 @@ initial_works = [
         ]
     ),
     Publication(
-        tags=[Tag(name=' Science')],
+        tags=[Tag(name=' Science'), Tag(name='Pancakes')],
         identifiers=[WorkIdentifier(5)],
         related_agents=[Organization(name='Umbrella Corporation')],
         related_works=[
@@ -76,6 +77,7 @@ def merge_node(from_obj, into_obj):
 def work_snapshot(work):
     # refresh from DB, even if type has changed
     work = work._meta.concrete_model.objects.get(id=work.id)
+    assert work.same_as_id is None
     attributes = {
         f.name: getattr(work, f.name)
         for f in work._meta.get_fields()
@@ -94,6 +96,7 @@ def work_snapshot(work):
 def agent_snapshot(agent):
     # refresh from DB, even if type has changed
     agent = agent._meta.concrete_model.objects.get(id=agent.id)
+    assert agent.same_as_id is None
     attributes = {
         f.name: getattr(agent, f.name)
         for f in agent._meta.get_fields()

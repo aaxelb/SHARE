@@ -16,28 +16,30 @@ class Command(BaseCommand):
     can_import_settings = True
 
     PROCEDURE = '''
-        CREATE OR REPLACE FUNCTION before_{concrete}_change() RETURNS trigger AS $$
+        DROP FUNCTION IF EXISTS before_{concrete}_change() CASCADE;
+
+        CREATE OR REPLACE FUNCTION after_{concrete}_change() RETURNS trigger AS $$
         DECLARE
             vid INTEGER;
         BEGIN
             INSERT INTO {version}({columns}) VALUES ({new_columns}) RETURNING (id) INTO vid;
-            NEW.version_id = vid;
-            RETURN NEW;
+            UPDATE {concrete} SET version_id = vid WHERE id = NEW.id;
+            RETURN NULL;
         END;
         $$ LANGUAGE plpgsql;
     '''
 
     PROCEDURE_REVERSE = '''
-        DROP FUNCTION before_{concrete}_change();
+        DROP FUNCTION after_{concrete}_change();
     '''
 
     TRIGGER = '''
         DROP TRIGGER IF EXISTS {concrete}_change ON {concrete};
 
         CREATE TRIGGER {concrete}_change
-        BEFORE INSERT OR UPDATE ON {concrete}
+        AFTER INSERT OR UPDATE ON {concrete}
         FOR EACH ROW
-        EXECUTE PROCEDURE before_{concrete}_change();
+        EXECUTE PROCEDURE after_{concrete}_change();
     '''
 
     TRIGGER_REVERSE = '''
@@ -87,15 +89,15 @@ class Command(BaseCommand):
                 continue
             ops.extend(self.build_operations(model))
         if options['initial']:
-            m = Migration('0003_triggers', 'share')
-            m.dependencies = [('share', '0002_create_share_user')]
+            m = Migration('0004_triggers', 'share')
+            m.dependencies = [('share', '0003_create_share_user')]
         else:
             ml = MigrationLoader(connection=connection)
             ml.build_graph()
             last_share_migration = [x[1] for x in ml.graph.leaf_nodes() if x[0] == 'share'][0]
             next_number = '{0:04d}'.format(int(last_share_migration[0:4]) + 1)
             m = Migration('{}_update_trigger_migrations_{}'.format(next_number, datetime.datetime.now().strftime("%Y%m%d_%H%M")), 'share')
-            m.dependencies = [('share', '0002_create_share_user'), ('share', last_share_migration)]
+            m.dependencies = [('share', '0003_create_share_user'), ('share', last_share_migration)]
         m.operations = ops
         self.write_migration(m)
 

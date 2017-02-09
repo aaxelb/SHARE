@@ -87,7 +87,7 @@ class ShareObjectMeta(ModelBase):
             **{k: v() for k, v in cls.share_attrs.items()},
             'VersionModel': version,
             'same_as': fields.ShareForeignKey(name, null=True, related_name='+'),
-            'version': models.OneToOneField(version, editable=False, related_name='%(app_label)s_%(class)s_version', on_delete=DATABASE_CASCADE),
+            'version': models.OneToOneField(version, editable=False, null=True, related_name='%(app_label)s_%(class)s_version', on_delete=DATABASE_CASCADE),
             # TypedManyToManyField works just like a normal field but has some special code to handle proxy models (if the exist)
             # and makes the database use ON DELETE CASCADE as opposed to Djangos software cascade
             'sources': fields.TypedManyToManyField(settings.AUTH_USER_MODEL, related_name='source_%(class)s', editable=False),

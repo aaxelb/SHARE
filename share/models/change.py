@@ -1,6 +1,10 @@
 import logging
 import re
 
+from collections import OrderedDict
+
+from datetime import datetime
+
 from model_utils import Choices
 
 from django.apps import apps
@@ -282,24 +286,52 @@ class Change(models.Model):
 
         return into_obj
 
-    def _merge_fk_field(self, from_obj, into_obj, field):
-        for obj in field.model.objects.filter(**{field.name: from_obj.id}):
-            try:
-                obj.change = self
-                setattr(obj, field.name, into_obj)
-                with transaction.atomic():
-                    obj.save()
-            except IntegrityError as e:
-                # Look for conflicting keys in error message, e.g. "Key (agent_id, creative_work_id, type)=(868, 115, share.publisher) already exists."
-                # If possible, merge this object into that one.
-                m = re.search('Key \(([^)]+)\)=\(([^)]+)\) already exists.', e.args[0])
-                if m:
-                    keys = dict(zip(m.group(1).split(', '), m.group(2).split(', ')))
-                    conflicting_obj = obj._meta.model.objects.get(**keys)
-                    obj.refresh_from_db()
-                    self._merge_objects(obj, conflicting_obj)
-                else:
-                    raise e
+    def _merge_fk_field(self, from_obj, into_obj, fk_field):
+        try:
+            unique_columns = [fk_field.model._meta.get_field(f).column for f in next(cols for cols in fk_field.model._meta.unique_together if fk_field.name in cols)]
+        except StopIteration:
+            # The foreign key isn't part of a unique constraint, so just update it.
+            fk_field.model.objects.filter(**{fk_field.name: from_obj}).update(change=self, **{fk_field.name: into_obj})
+            return 
+
+        # TODO will always overwrite fields on conflict...
+        query = '''
+        WITH upserted AS (
+            INSERT INTO "{table}" {insert_columns} VALUES %(insert_values)s
+            ON CONFLICT {unique_columns} DO UPDATE SET {update_columns} = %(update_values)s
+            RETURNING id
+        )
+        UPDATE "{table}" SET same_as_id = upserted.id
+        FROM upserted
+        WHERE "{table}".id = %(id)s RETURNING *
+        '''
+        def format_columns(columns):
+            return '("{}")'.format('", "'.join(columns))
+
+        excluded = {fk_field.name, 'id', 'version', 'same_as', 'same_as_version', 'extra', 'extra_version'}
+        fields = [f for f in fk_field.model._meta.get_fields() if f.name not in excluded and hasattr(f, 'column') and f.column and not f.many_to_many]
+        for obj in fk_field.model.objects.filter(**{fk_field.name: from_obj.id}):
+            col_values = OrderedDict([(f.column, getattr(obj, f.column)) for f in fields])
+            col_values[fk_field.column] = into_obj.id
+            col_values['change_id'] = self.id
+            col_values['date_modified'] = datetime.utcnow()
+
+            update_columns = col_values.keys()
+            update_values = col_values.values()
+
+            col_values['date_created'] = col_values['date_modified']
+
+            insert_columns = col_values.keys()
+            insert_values = col_values.values()
+
+            q = query.format(
+                table=fk_field.model._meta.db_table,
+                insert_columns=format_columns(insert_columns),
+                unique_columns=format_columns(unique_columns),
+                update_columns=format_columns(update_columns),
+            )
+            updated = fk_field.model.objects.raw(q, params={'insert_values': tuple(insert_values), 'update_values': tuple(update_values), 'id': obj.id})
+            logger.critical('Updated: %r same as %s', updated[0], updated[0].same_as_id)
 
     def _merge_scalar_field(self, from_obj, into_obj, field):
         from_value = getattr(from_obj, field.name)
