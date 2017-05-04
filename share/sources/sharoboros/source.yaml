@@ -1,0 +1,29 @@
+name: sharoboros
+long_title: SHAROBOROS
+home_page: http://share.osf.io
+user: sources.sharoboros
+configs:
+- base_url: http://localhost:8000/oai-pmh/
+  disabled: false
+  harvester: oai
+  harvester_kwargs: {metadata_prefix: oai_dc}
+  label: sharoboros.local
+  rate_limit_allowance: 1
+  rate_limit_period: 2
+  transformer: oai_dc
+- base_url: https://staging-share.osf.io/oai-pmh/
+  disabled: true
+  harvester: oai
+  harvester_kwargs: {metadata_prefix: oai_dc}
+  label: sharoboros.staging
+  rate_limit_allowance: 1
+  rate_limit_period: 2
+  transformer: oai_dc
+- base_url: https://share.osf.io/oai-pmh/
+  disabled: true
+  harvester: oai
+  harvester_kwargs: {metadata_prefix: oai_dc}
+  label: sharoboros.prod
+  rate_limit_allowance: 1
+  rate_limit_period: 2
+  transformer: oai_dc
