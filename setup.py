@@ -91,6 +91,13 @@ setup(
             'org.ncar = share.harvesters.org_ncar:NCARHarvester',
             'org.neurovault = share.harvesters.org_neurovault:NeuroVaultHarvester',
             'org.plos = share.harvesters.org_plos:PLOSHarvester',
-        ]
+        ],
+        'share.regulate.node_steps': [
+        ],
+        'share.regulate.graph_steps': [
+        ],
+        'share.regulate.validation_steps': [
+            'jsonld_validator = share.regulate.steps.validate:JSONLDValidatorStep',
+        ],
     }
 )
