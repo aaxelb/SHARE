@@ -11,7 +11,7 @@ configs:
           institutions: relationships.affiliated_institutions.links.related.href
           identifiers: relationships.identifiers.links.related.href
   label: io.osf
-  rate_limit_allowance: 1
+  rate_limit_allowance: 10
   rate_limit_period: 2
   transformer: io.osf
   transformer_kwargs: {}
@@ -42,7 +42,7 @@ configs:
           institutions: relationships.affiliated_institutions.links.related.href
           identifiers: relationships.identifiers.links.related.href
   label: io.osf.registrations
-  rate_limit_allowance: 1
+  rate_limit_allowance: 10
   rate_limit_period: 2
   transformer: io.osf.registrations
   transformer_kwargs: {}

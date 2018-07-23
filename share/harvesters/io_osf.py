@@ -19,16 +19,23 @@ class NodeSuddenlyUnavailable(HarvestError):
     pass
 
 
+class InvalidEmbedPathError(HarvestError):
+    pass
+
+
 class OSFHarvester(BaseHarvester):
     VERSION = 1
 
+    embeddable_fields = ('children', 'contributors', 'identifiers')
+
     # override BaseHarvester._do_fetch
     def _do_fetch(self, start_date, end_date, path, query_params=None, embed_attrs=None):
-        return self._fetch_records(self._build_url(start_date, end_date, path, query_params), embed_attrs)
+        url = self._build_url(start_date, end_date, path, query_params, embed_attrs)
+        return self._fetch_records(url, embed_attrs)
 
     # override BaseHarvester._do_fetch_by_id
     def _do_fetch_by_id(self, guid, path, query_params=None, embed_attrs=None):
-        url = self._build_guid_url(guid, path, query_params).url
+        url = self._build_guid_url(guid, path, query_params, embed_attrs).url
         response = self.requests.get(url)
 
         if response.status_code // 100 != 2:
@@ -44,26 +51,35 @@ class OSFHarvester(BaseHarvester):
         if settings.OSF_BYPASS_THROTTLE_TOKEN:
             self.session.headers.update({'X-THROTTLE-TOKEN': settings.OSF_BYPASS_THROTTLE_TOKEN})
 
-    def _build_url(self, start_date, end_date, path, query_params):
+    def _build_url(self, start_date, end_date, path, query_params, embed_attrs):
         self._setup_session()
 
         url = furl(settings.OSF_API_URL + path)
+        url.args['version'] = '2.8'
         url.args['page[size]'] = 100
         # url.args['filter[public]'] = 'true'
         # OSF turns dates into date @ midnight so we have to go ahead one more day
         url.args['filter[date_modified][gte]'] = start_date.date().isoformat()
         url.args['filter[date_modified][lte]'] = (end_date + datetime.timedelta(days=2)).date().isoformat()
+
         for param, value in (query_params or {}).items():
             url.args[param] = value
+        self._add_embed_params(url, embed_attrs)
         return url
 
-    def _build_guid_url(self, guid, path, query_params):
+    def _build_guid_url(self, guid, path, query_params, embed_attrs):
         self._setup_session()
 
         url = furl(settings.OSF_API_URL)
         url.path.add(path).add(guid)
+        url.args['version'] = '2.8'
         for param, value in (query_params or {}).items():
             url.args[param] = value
+        self._add_embed_params(url, embed_attrs)
+        return url
+
+    def _add_embed_params(self, url, embed_attrs):
+        url.args['embed'] = [k for k in embed_attrs.keys() if k in self.embeddable_fields]
         return url
 
     def _fetch_records(self, url, embed_attrs):
@@ -102,26 +118,31 @@ class OSFHarvester(BaseHarvester):
         return records, next_page
 
     def _populate_embeds(self, record, embed_attrs):
+        all_embeds = record.pop('embeds', {})
         for attr, key in (embed_attrs or {}).items():
-            embedded = record
-            try:
-                for key in key.split('.'):
-                    embedded = embedded[key]
-            except KeyError:
-                logger.warning('Could not access attribute %s at %s', attr, key)
-                continue
-
-            logger.info('Populating embedded attribute "{}" for "{}"'.format(attr, record['id']))
-
-            data = []
-            url = furl(embedded).add(args={'page[size]': 100})
-
-            while True:
-                resp, url = self._fetch_page(url)
-                data.extend(resp.json()['data'])
-
-                if not url:
-                    break
-
+            embedded = all_embeds.get(attr, None)
+            if embedded and embedded['meta']['total'] <= embedded['meta']['per_page']:
+                data = embedded['data']
+            else:
+                data = self._fetch_relation(record, key)
             record[attr] = data
         return record
+
+    def _fetch_relation(self, record, path_to_url):
+        relationship_url = record
+        try:
+            for k in path_to_url.split('.'):
+                relationship_url = relationship_url[k]
+        except KeyError:
+            raise InvalidEmbedPathError('Could not find relationship URL at {}'.format(path_to_url))
+
+        url = furl(relationship_url).add(args={'page[size]': 100})
+
+        data = []
+        while True:
+            resp, url = self._fetch_page(url)
+            data.extend(resp.json()['data'])
+
+            if not url:
+                break
+        return data
