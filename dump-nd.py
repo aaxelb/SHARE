@@ -9,12 +9,41 @@ import re
 #   strip out email addresses (e.g. `"uri": "mailto:foo@example.com"`)
 #   write to a file in the given directory
 
+# try putting one json per line, allowing fewer, larger files
+# still separate by source, tho, ideally
+# start with one file per source -- could get too big for e.g. crossref, datacite
 
 EMAIL_RE = re.compile(r'"uri":\s*"mailto:[^"]*",?', flags=re.IGNORECASE)
 
 
 def get_cleaned_json_string(json_string):
     return re.sub(EMAIL_RE, '', json_string)
+
+
+class OpenFiles:
+    def __init__(self, parent_directory):
+        self.parent_directory = parent_directory
+
+    def __enter__(self):
+        self.open_files = {}
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        for file in self.open_files.values():
+            file.close()
+
+    def get_open_file(self, source_name):
+        open_file = self.open_files.get(source_name, None)
+        if open_file is None:
+            file_path = self.get_file_path(source_name)
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            open_file = open(file_path, 'a')
+            self.open_files[source_name] = open_file
+        return open_file
+
+    def get_file_path(self, source_name):
+        file_name = f'{source_name}.json-list'
+        return os.path.join(self.parent_directory, file_name)
 
 
 def write_datums_to_files(output_directory, datums_iterator, stop_after=None):
@@ -24,19 +53,17 @@ def write_datums_to_files(output_directory, datums_iterator, stop_after=None):
     @datums_iterator: iterator of (datum_id, source_name, datum_jsonld) pairs
     @stop_after: integer or None, max number of datums to load/write
     """
-    written_files = set()
     for datum_id, source_name, datum_jsonld, datum_created_at in datums_iterator:
+        print(f'writing datum {datum_id}...')
         cleaned_datum = get_cleaned_json_string(datum_jsonld)
 
-        file_name = f'{datum_created_at.date().isoformat()}__{datum_id}.json'
-        file_path = os.path.join(output_directory, source_name, file_name)
-        print(f'writing datum {datum_id}...')
-
+        file_name = f'{source_name}.json-list'
+        file_path = os.path.join(output_directory, file_name)
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        with open(file_path, 'w') as file:
-            file.write(cleaned_datum)
-        written_files.add(file_path)
-    return written_files
+
+        with open(file_path, 'a') as open_file:
+            open_file.write(cleaned_datum)
+            open_file.write('\n')
 
 
 NORMALIZED_DATA_QUERY = '''
@@ -66,6 +93,8 @@ def dump_normalized_data(output_directory, start_id, num_records):
 
 
 def jsonb_passthrough(value, cursor):
+    """parser function for jsonb values that doesn't parse anything, just passes the string value untouched
+    """
     return value
 
 
