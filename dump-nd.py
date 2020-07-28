@@ -1,41 +1,20 @@
 import argparse
-import json
 import os
 import psycopg2
-import tarfile
+import re
 
 # connect to db
-# cursor on share_normalizeddata
+# get a cursor on share_normalizeddata
 # for each jsonld datum:
-#   strip out nodes with `@type='agentidentifier'` and `scheme='mailto'`
-#   write to a file
-#   add filename to set
-# tar all files in set
+#   strip out email addresses (e.g. `"uri": "mailto:foo@example.com"`)
+#   write to a file in the given directory
 
 
-def is_email_node(jsonld_node):
-    """filter function for nodes in NormalizedData.data
-
-    @jsonld_node: dictionary like `{ '@id': '_:123', '@type': 'agentidentifier', ... }`
-
-    returns boolean
-    """
-    node_type = jsonld_node.get('@type', '').lower()
-    node_scheme = jsonld_node.get('scheme', '').lower()
-    return (node_type == 'agentidentifier' and node_scheme == 'mailto')
+EMAIL_RE = re.compile(r'"uri":\s*"mailto:[^"]*",?', flags=re.IGNORECASE)
 
 
-def get_cleaned_datum(jsonld_graph):
-    """remove emails so this can be better shared publicly.
-
-    @jsonld_graph: dictionary like `{ '@graph': [ { ... }, { ... }, ... ] }`
-        from NormalizedData.data field
-
-    returns a similar dictionary, with a subset of jsonld nodes
-    """
-    nodes = jsonld_graph['@graph']
-    filtered_nodes = [n for n in nodes if not is_email_node(n)]
-    return {**jsonld_graph, '@graph': filtered_nodes}
+def get_cleaned_json_string(json_string):
+    return re.sub(EMAIL_RE, '', json_string)
 
 
 def write_datums_to_files(output_directory, datums_iterator, stop_after=None):
@@ -47,20 +26,20 @@ def write_datums_to_files(output_directory, datums_iterator, stop_after=None):
     """
     written_files = set()
     for datum_id, source_name, datum_jsonld, datum_created_at in datums_iterator:
-        cleaned_datum = get_cleaned_datum(datum_jsonld)
+        cleaned_datum = get_cleaned_json_string(datum_jsonld)
 
         file_name = f'{datum_created_at.date().isoformat()}__{datum_id}.json'
         file_path = os.path.join(output_directory, source_name, file_name)
-        print(f'writing datum {datum_id} to path {file_path}')
+        print(f'writing datum {datum_id}...')
 
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         with open(file_path, 'w') as file:
-            json.dump(cleaned_datum, file)
+            file.write(cleaned_datum)
         written_files.add(file_path)
     return written_files
 
 
-normalized_data_query = '''
+NORMALIZED_DATA_QUERY = '''
 SELECT nd.id,
     u.username,
     nd.data,
@@ -76,19 +55,37 @@ LIMIT %(num_records)s
 def dump_normalized_data(output_directory, start_id, num_records):
     connection = psycopg2.connect(host='localhost', dbname='share', user='postgres')  # TODO how work
     with connection:
+        setup_jsonb_parser(connection)  # don't parse json strings into python objects
+
         with connection.cursor('dump_normalized_data') as cursor:
-            cursor.execute(normalized_data_query, {
+            cursor.execute(NORMALIZED_DATA_QUERY, {
                 'start_id': start_id,
                 'num_records': num_records,
             })
             write_datums_to_files(output_directory, cursor)
 
 
-def make_directory_tarball(directory):
-    tarfile_name = f'{directory}.tar'
-    print(f'dumping all NormalizedData to {tarfile_name} ...')
-    with tarfile.open(tarfile_name, 'w') as tf:  # TODO compression?
-        tf.add(directory)
+def jsonb_passthrough(value, cursor):
+    return value
+
+
+def setup_jsonb_parser(connection):
+    """disable parsing json to dict for the given connection
+    """
+    jsonb_type_oid = get_jsonb_type_oid(connection)
+    jsonb_passthrough_type = psycopg2.extensions.new_type((jsonb_type_oid,), 'JSONB', jsonb_passthrough)
+    psycopg2.extensions.register_type(jsonb_passthrough_type, connection)
+
+
+def get_jsonb_type_oid(connection):
+    with connection.cursor() as cursor:
+        cursor.execute('''
+            SELECT pg_type.oid
+            FROM pg_type JOIN pg_namespace ON pg_type.typnamespace = pg_namespace.oid
+            WHERE pg_type.typname = %(typname)s AND pg_namespace.nspname = %(namespace)s
+        ''', {'typname': 'jsonb', 'namespace': 'pg_catalog'})
+        oids = cursor.fetchall()
+        return oids[0][0]
 
 
 if __name__ == '__main__':
@@ -96,9 +93,6 @@ if __name__ == '__main__':
     parser.add_argument('output_directory', type=str)
     parser.add_argument('-s', '--start-id', type=int, default=0)
     parser.add_argument('-n', '--num-records', type=int, default=50000)
-    parser.add_argument('-t', '--tar', action='store_true')
     args = parser.parse_args()
 
     dump_normalized_data(args.output_directory, args.start_id, args.num_records)
-    if args.tar:
-        make_directory_tarball(args.output_directory)
