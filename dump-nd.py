@@ -9,41 +9,15 @@ import re
 #   strip out email addresses (e.g. `"uri": "mailto:foo@example.com"`)
 #   write to a file in the given directory
 
-# try putting one json per line, allowing fewer, larger files
-# still separate by source, tho, ideally
-# start with one file per source -- could get too big for e.g. crossref, datacite
+# create one file per source
+# write one json per line, allowing fewer, larger files
+# start with one file per source -- might get real big for e.g. crossref, datacite
 
-EMAIL_RE = re.compile(r'"uri":\s*"mailto:[^"]*",?', flags=re.IGNORECASE)
+EMAIL_RE = re.compile(r'"uri":\s*"mailto:[^"]*"', flags=re.IGNORECASE)
 
 
 def get_cleaned_json_string(json_string):
-    return re.sub(EMAIL_RE, '', json_string)
-
-
-class OpenFiles:
-    def __init__(self, parent_directory):
-        self.parent_directory = parent_directory
-
-    def __enter__(self):
-        self.open_files = {}
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        for file in self.open_files.values():
-            file.close()
-
-    def get_open_file(self, source_name):
-        open_file = self.open_files.get(source_name, None)
-        if open_file is None:
-            file_path = self.get_file_path(source_name)
-            os.makedirs(os.path.dirname(file_path), exist_ok=True)
-            open_file = open(file_path, 'a')
-            self.open_files[source_name] = open_file
-        return open_file
-
-    def get_file_path(self, source_name):
-        file_name = f'{source_name}.json-list'
-        return os.path.join(self.parent_directory, file_name)
+    return re.sub(EMAIL_RE, '"uri": "mailto:(email redacted)"', json_string)
 
 
 def write_datums_to_files(output_directory, datums_iterator, stop_after=None):
@@ -53,8 +27,8 @@ def write_datums_to_files(output_directory, datums_iterator, stop_after=None):
     @datums_iterator: iterator of (datum_id, source_name, datum_jsonld) pairs
     @stop_after: integer or None, max number of datums to load/write
     """
-    for datum_id, source_name, datum_jsonld, datum_created_at in datums_iterator:
-        print(f'writing datum {datum_id}...')
+    for datum_id, source_name, datum_jsonld in datums_iterator:
+        print(f'writing datum {datum_id} ...')
         cleaned_datum = get_cleaned_json_string(datum_jsonld)
 
         file_name = f'{source_name}.json-list'
@@ -69,8 +43,7 @@ def write_datums_to_files(output_directory, datums_iterator, stop_after=None):
 NORMALIZED_DATA_QUERY = '''
 SELECT nd.id,
     u.username,
-    nd.data,
-    nd.created_at
+    nd.data
 FROM share_normalizeddata nd
 JOIN share_shareuser u ON nd.source_id = u.id
 WHERE nd.id >= %(start_id)s
@@ -79,8 +52,7 @@ LIMIT %(num_records)s
 '''
 
 
-def dump_normalized_data(output_directory, start_id, num_records):
-    connection = psycopg2.connect(host='localhost', dbname='share', user='postgres')  # TODO how work
+def dump_normalized_data(connection, output_directory, start_id, num_records):
     with connection:
         setup_jsonb_parser(connection)  # don't parse json strings into python objects
 
@@ -122,6 +94,18 @@ if __name__ == '__main__':
     parser.add_argument('output_directory', type=str)
     parser.add_argument('-s', '--start-id', type=int, default=0)
     parser.add_argument('-n', '--num-records', type=int, default=50000)
+    parser.add_argument('--db-host', type=str, default='localhost')
+    parser.add_argument('--db-name', type=str, default='share')
+    parser.add_argument('--db-user', type=str, default='postgres')
+    parser.add_argument('--db-port', type=str, default='5432')
+    parser.add_argument('--db-password', type=str, default='')
     args = parser.parse_args()
 
-    dump_normalized_data(args.output_directory, args.start_id, args.num_records)
+    connection = psycopg2.connect(
+        host=args.db_host,
+        port=args.db_port,
+        dbname=args.db_name,
+        user=args.db_user,
+        password=args.db_password,
+    )
+    dump_normalized_data(connection, args.output_directory, args.start_id, args.num_records)
