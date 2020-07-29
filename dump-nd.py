@@ -20,12 +20,11 @@ def get_cleaned_json_string(json_string):
     return re.sub(EMAIL_RE, '"uri": "mailto:(email redacted)"', json_string)
 
 
-def write_datums_to_files(output_directory, datums_iterator, stop_after=None):
+def write_datums_to_files(output_directory, datums_iterator):
     """clean and write datums according to their source
 
     @output_directory: string/path-like
-    @datums_iterator: iterator of (datum_id, source_name, datum_jsonld) pairs
-    @stop_after: integer or None, max number of datums to load/write
+    @datums_iterator: iterator of (datum_id, source_name, datum_jsonld) tuples
     """
     for datum_id, source_name, datum_jsonld in datums_iterator:
         print(f'writing datum {datum_id} ...')
@@ -56,6 +55,7 @@ def dump_normalized_data(connection, output_directory, start_id, num_records):
     with connection:
         setup_jsonb_parser(connection)  # don't parse json strings into python objects
 
+        # giving the cursor a name makes it a server-side cursor, will automatically chunk the results (chunk size 2000)
         with connection.cursor('dump_normalized_data') as cursor:
             cursor.execute(NORMALIZED_DATA_QUERY, {
                 'start_id': start_id,
