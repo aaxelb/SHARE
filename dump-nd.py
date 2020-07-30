@@ -2,6 +2,7 @@ import argparse
 import os
 import psycopg2
 import re
+import gzip
 
 # connect to db
 # get a cursor on share_normalizeddata
@@ -30,11 +31,11 @@ def write_datums_to_files(output_directory, datums_iterator):
         print(f'writing datum {datum_id} ...')
         cleaned_datum = get_cleaned_json_string(datum_jsonld)
 
-        file_name = f'{source_name}.json-list'
+        file_name = f'{source_name}.json-list.gz'
         file_path = os.path.join(output_directory, file_name)
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
-        with open(file_path, 'a') as open_file:
+        with gzip.open(file_path, 'at') as open_file:
             open_file.write(cleaned_datum)
             open_file.write('\n')
 
