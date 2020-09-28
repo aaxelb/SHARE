@@ -3,6 +3,8 @@ import uuid
 import pendulum
 from typing import Union
 
+from raven.contrib.django.raven_compat.models import client as sentry_client
+
 from share.ingest.scheduler import IngestScheduler
 from share.models import RawDatum
 from share.models import SourceConfig
@@ -36,6 +38,11 @@ class Ingester:
 
         self.datum_id = datum_id or str(uuid.uuid4())
         self.datestamp = datestamp or pendulum.now()
+
+        if not datum_id:
+            sentry_client.captureMessage('Ingesting datum sans suid! This should/will be an error.', data={
+                'generated_suid': self.datum_id,
+            })
 
     def with_config(self, config):
         assert not self._config
