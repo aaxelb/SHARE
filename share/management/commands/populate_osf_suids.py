@@ -1,27 +1,7 @@
-import re
-
 from share.management.commands import BaseShareCommand
 from share.models import NormalizedData, RawDatum, ShareUser, SourceUniqueIdentifier
 from share.util.graph import MutableGraph
-from share.util.osf import osf_sources
-
-
-OSF_GUID_RE = re.compile(r'^https?://(?:[^.]+.)?osf.io/(?P<guid>[^/]+)/?$')
-
-
-def get_guid(uri):
-    match = OSF_GUID_RE.match(uri)
-    return match.group('guid') if match else None
-
-
-def get_central_work(graph):
-    work_nodes = graph.filter_by_concrete_type('abstractcreativework')
-    if not work_nodes:
-        return None
-
-    # get the work node with the most attrs
-    work_nodes.sort(key=lambda n: len(n.attrs()), reverse=True)
-    return work_nodes[0]
+from share.util.osf import osf_sources, guess_osf_guid
 
 
 def update_suid(normalized_datum, new_suid_identifier):
@@ -66,12 +46,7 @@ class Command(BaseShareCommand):
         # TODO chunk, or allow stopping partway through
         with self.rollback_unless_commit(commit=options.get('commit')):
             for nd in nd_qs:
-                graph = MutableGraph.from_jsonld(nd.data)
-                central_work = get_central_work(graph)
-                osf_guids = list(filter(bool, (
-                    get_guid(identifier['uri'])
-                    for identifier in central_work['identifiers']
-                )))
-                # print(f'osf guids for {nd}: {osf_guids}')
-                if len(osf_guids) == 1:
-                    update_suid(nd, osf_guids[0])
+                mgraph = MutableGraph.from_jsonld(nd.data)
+                guid = guess_osf_guid(mgraph)
+                if guid:
+                    update_suid(nd, guid)
