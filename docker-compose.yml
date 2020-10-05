@@ -117,7 +117,7 @@ services:
 
   worker:
     image: quay.io/centerforopenscience/share:develop
-    command: /usr/local/bin/celery worker -l DEBUG
+    command: /usr/local/bin/celery worker -l DEBUG -A project
     depends_on:
       - postgres
       - rabbitmq
