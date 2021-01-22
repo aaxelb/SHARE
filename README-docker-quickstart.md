@@ -1,0 +1,85 @@
+# SHARE Quickstart or: How I Learned to Stop Worrying and Love the Dock
+
+this guide sets up everything inside docker containers -- no dependencies
+or python environments on your host machine.
+
+## pre-requisites
+- [git](https://git-scm.com/)
+- [docker](https://www.docker.com/) (including `docker-compose`)
+
+## getting a local SHARE running
+
+### 0. git the code
+```
+git clone https://github.com/CenterForOpenScience/SHARE.git share
+```
+the rest of this guide assumes your working directory is the SHARE repository root
+(where the `docker-compose.yml` is):
+```
+cd ./share
+```
+
+### 1. download several bits
+download docker images (depending on your internet connection, this may take a beat):
+```
+docker-compose pull
+```
+install python dependencies (in a shared docker volume):
+```
+docker-compose up requirements
+```
+
+### 2. structured data
+there are two services that store persistent data: `postgres` and `elasticsearch`
+
+let's start them from the host machine:
+```
+docker-compose up -d postgres elasticsearch
+```
+
+since we're not installing anything more on the host machine, it'll be useful to open
+a shell running within SHARE's environment in docker:
+```
+docker-compose run --rm --no-deps worker bash
+```
+this will open a bash prompt within a temporary `worker` container -- from here we can
+use SHARE's python environment, including django's `manage.py` and SHARE's own `sharectl`
+utility (defined in `share/bin/`)
+
+from the worker shell, use django's `migrate` command to set up tables in postgres:
+```
+python manage.py migrate
+```
+and use `sharectl` to set up indexes in elasticsearch:
+```
+sharectl search setup --initial
+```
+
+### 3. start 'em up
+all other services can now be started (from the host machine):
+```
+docker-compose up -d rabbitmq worker web indexer frontend
+```
+
+## harvesting data
+TODO: once share.osf.io/oaipmh is reliable, make it easy to init a local deployment by harvesting data from there
+
+for now, maybe grab a day of data from arxiv.org?
+```
+sharectl schedule -t org.arxiv YYYY-MM-DD
+```
+you could watch its progress several different ways:
+  - looking at task queues in the rabbitmq management interface at http://localhost:15673/ (guest/guest)
+  - following the `worker` container's logs: `docker-compose logs -f worker`
+  - watching the result count rise as you refresh the search interface at http://localhost:4203/discover
+
+## handy commands
+django/python shell:
+```
+python manage.py shell_plus
+```
+
+## admin interface
+http://localhost:8003/admin
+
+TODO: how to set up admin account

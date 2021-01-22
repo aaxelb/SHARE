@@ -308,7 +308,7 @@ ELASTICSEARCH = {
         'no_ack': False,  # WHY KOMBU THAT'S NOT HOW ENGLISH WORKS
     },
     # NOTE: "active" indexes will receive new records from the indexer daemon -- be sure they're set up first
-    'ACTIVE_INDEXES': split(os.environ.get('ELASTICSEARCH_ACTIVE_INDEXES', 'share_customtax_1'), ','),
+    'ACTIVE_INDEXES': split(os.environ.get('ELASTICSEARCH_ACTIVE_INDEXES', 'share_postrend_backcompat'), ','),
     # NOTE: indexes here won't be created automatically -- run `sharectl search setup <index_name>` BEFORE the daemon starts
     'INDEXES': {
         'share_v3': {
