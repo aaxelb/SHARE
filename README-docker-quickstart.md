@@ -93,3 +93,5 @@ you could watch its progress several different ways:
   - following the `worker` container's logs: `docker-compose logs -f worker`
   - watching the result count rise as you refresh the search interface at http://localhost:4203/discover
 
+## troubleshooting
+- does docker have enough memory? try giving it more
