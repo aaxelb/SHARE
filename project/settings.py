@@ -541,6 +541,7 @@ SUBJECTS_CENTRAL_TAXONOMY = os.environ.get('SUBJECTS_CENTRAL_TAXONOMY', 'bepress
 SUBJECTS_YAML = 'share/subjects.yaml'
 SUBJECT_SYNONYMS_JSON = 'share/models/synonyms.json'
 
+# if false, will skip disambiguation, building ChangeSets, and updating ShareObjects
 SHARE_LEGACY_PIPELINE = os.environ.get('SHARE_LEGACY_PIPELINE', True)
 
 HIDE_DEPRECATED_VIEWS = strtobool(os.environ.get('HIDE_DEPRECATED_VIEWS', 'False'))

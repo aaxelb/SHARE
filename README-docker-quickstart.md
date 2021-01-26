@@ -61,10 +61,30 @@ all other services can now be started (from the host machine):
 docker-compose up -d rabbitmq worker web indexer frontend
 ```
 
+## handy commands
+
+### start a django shell
+```
+python manage.py shell_plus
+```
+
+## admin interface
+http://localhost:8003/admin -- (admin/password)
+
 ## harvesting data
 TODO: once share.osf.io/oaipmh is reliable, make it easy to init a local deployment by harvesting data from there
 
-for now, maybe grab a day of data from arxiv.org?
+also TODO: put some thought into unconvoluting the whole harvest-scheduling, ingest-disabling system
+
+for now, maybe grab a day of data from arxiv.org? at the moment, the `Source` needs to be marked
+`canonical` for the system to ingest its data -- either:
+  - update it in the admin interface: http://localhost:8003/admin/share/source/
+  - update it from the django shell:
+    ```
+    Source.objects.filter(name='org.arxiv').update(canonical=True)
+    ```
+
+then choose a recent date and start a harvest task for it:
 ```
 sharectl schedule -t org.arxiv YYYY-MM-DD
 ```
@@ -73,13 +93,3 @@ you could watch its progress several different ways:
   - following the `worker` container's logs: `docker-compose logs -f worker`
   - watching the result count rise as you refresh the search interface at http://localhost:4203/discover
 
-## handy commands
-django/python shell:
-```
-python manage.py shell_plus
-```
-
-## admin interface
-http://localhost:8003/admin
-
-TODO: how to set up admin account
