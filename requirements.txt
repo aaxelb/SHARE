@@ -29,7 +29,7 @@ nameparser==1.0.1  # LGPL
 networkx==2.1  # BSD
 newrelic==2.86.3.70  # newrelic APM agent, Custom License
 pendulum==1.2.5  # MIT
-pillow==4.0.0  # PIL Software License:
+pillow==8.1.1  # PIL Software License:
 psycogreen==1.0  # BSD
 psycopg2==2.7.3  # LGPL with exceptions or ZPL
 pycountry==1.20  # LGPL 2.1
