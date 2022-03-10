@@ -2,7 +2,6 @@ import logging
 
 import celery
 
-from django.conf import settings
 from django.db import models
 from django.db import transaction
 
@@ -10,7 +9,6 @@ from share.harvest.scheduler import HarvestScheduler
 from share.models import HarvestJob
 from share.models import SourceConfig
 from share.tasks.jobs import HarvestJobConsumer
-from share.tasks.jobs import IngestJobConsumer
 from share.util.source_stat import SourceStatus
 from share.util.source_stat import OAISourceStatus
 
@@ -52,17 +50,6 @@ def harvest(self, **kwargs):
         limit (int, optional): Maximum number of data to harvest. Defaults to no limit.
     """
     HarvestJobConsumer(task=self).consume(**kwargs)
-
-
-@celery.shared_task(bind=True, max_retries=5)
-def ingest(self, only_canonical=None, **kwargs):
-    """Ingest the data of the given IngestJob or the next available IngestJob.
-
-    Keyword arguments from JobConsumer.consume
-    """
-    if only_canonical is None:
-        only_canonical = settings.INGEST_ONLY_CANONICAL_DEFAULT
-    IngestJobConsumer(task=self, only_canonical=only_canonical).consume(**kwargs)
 
 
 @celery.shared_task(bind=True)

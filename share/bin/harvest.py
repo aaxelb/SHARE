@@ -40,7 +40,7 @@ def fetch(args, argv):
     if not config:
         return -1
 
-    harvester = config.get_harvester(pretty=True)
+    harvester = config.get_harvester()
 
     ids = args['<ids>']
     if ids:

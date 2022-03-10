@@ -90,25 +90,6 @@ class TestHarvesterInterface:
 
         assert e.value.args == ('{!r}._do_fetch must return a GeneratorType for optimal performance and memory usage'.format(harvester), )
 
-    def test_harvest_no_pretty(self, harvester):
-        assert harvester.serializer.pretty is False
-        harvester.serializer.pretty = True
-
-        assert harvester.serializer.pretty is True
-        with pytest.raises(ValueError) as e:
-            list(harvester.harvest())
-
-        assert e.value.args == ('To ensure that data is optimally deduplicated, harvests may not occur while using a pretty serializer.', )
-
-    def fetch_pretty(self, harvester):
-        assert harvester.serializer.pretty is False
-        list(harvester.fetch())
-
-        harvester.serializer.pretty = True
-
-        assert harvester.serializer.pretty is True
-        list(harvester.fetch())
-
 
 @pytest.mark.django_db
 class TestHarvesterBackwardsCompat:
