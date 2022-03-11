@@ -70,21 +70,23 @@ services:
 
   requirements:
     image: quay.io/centerforopenscience/share:develop
+    build:
+      context: .
     command:
       - /bin/bash
       - -c
       - apt-get update &&
         apt-get install -y gcc &&
         pip install -r requirements.txt -r dev-requirements.txt &&
-        (python3 -m compileall /usr/local/lib/python3.6 || true) &&
-        rm -Rf /python3.6/* &&
+        (python3 -m compileall /usr/local/lib/python3.7 || true) &&
+        rm -Rf /python3.7/* &&
         apt-get remove -y gcc &&
-        cp -Rf -p /usr/local/lib/python3.6 / &&
+        cp -Rf -p /usr/local/lib/python3.7 / &&
         python3 setup.py develop
     restart: 'no'
     volumes:
       - ./:/code:cached
-      - share_requirements_vol:/python3.6
+      - share_requirements_vol:/python3.7
 
   frontend:
     image: quay.io/centerforopenscience/share-web:develop-local
@@ -97,6 +99,8 @@ services:
 
   worker:
     image: quay.io/centerforopenscience/share:develop
+    build:
+      context: .
     command: /usr/local/bin/celery --app project worker --uid daemon -l INFO
     depends_on:
       - postgres
@@ -106,13 +110,15 @@ services:
       - indexer
     volumes:
       - ./:/code:cached
-      - share_requirements_vol:/usr/local/lib/python3.6
+      - share_requirements_vol:/usr/local/lib/python3.7
     env_file:
       - .docker-compose.env
     stdin_open: true
 
   web:
     image: quay.io/centerforopenscience/share:develop
+    build:
+      context: .
     command: python manage.py runserver 0.0.0.0:8000
     ports:
       - 8003:8000
@@ -123,13 +129,15 @@ services:
       - frontend
     volumes:
       - ./:/code:cached
-      - share_requirements_vol:/usr/local/lib/python3.6
+      - share_requirements_vol:/usr/local/lib/python3.7
     env_file:
       - .docker-compose.env
     stdin_open: true
 
   indexer:
     image: quay.io/centerforopenscience/share:develop
+    build:
+      context: .
     command: sharectl search daemon
     depends_on:
       - postgres
@@ -137,7 +145,7 @@ services:
       - elasticsearch
     volumes:
       - ./:/code:cached
-      - share_requirements_vol:/usr/local/lib/python3.6
+      - share_requirements_vol:/usr/local/lib/python3.7
     env_file:
       - .docker-compose.env
     stdin_open: true
