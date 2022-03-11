@@ -1,7 +1,7 @@
 from hashlib import sha256
 from django.db import models
 
-from share.util import simple___repr__
+from trove.util import simple___repr__
 
 
 class MetadataExpression(models.Model):
@@ -34,16 +34,15 @@ class MetadataExpression(models.Model):
 
     # assumed sha256 (...for now)
     # TODO-quest: auto-compute hash on save -- in model or db trigger
-    content_hash = models.CharField(max_length=64, min_length=64)
+    content_hash = models.CharField(max_length=64)
 
-    # TODO-quest: so complicated to answer "who gave us this?"
-    #             self.harvest_job.source_config.source.user...
-    #             consider improvement
-    harvest_job = models.ForeignKey('HarvestJob', null=True, on_delete=models.SET_NULL)
+    # TODO-quest: using harvest_job makes it complicated to answer "who gave us this?"
+    #             self.harvest_job.source_config.source.user... consider improvements
+    # harvest_job = models.ForeignKey('HarvestJob', null=True, on_delete=models.SET_NULL)
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['content_hash']),
+            models.UniqueConstraint(fields=['content_hash'], name='metadata_expression__content_hash'),
         ]
         indexes = [
             models.Index(fields=['object_url']),
