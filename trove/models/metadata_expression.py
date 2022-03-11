@@ -8,7 +8,7 @@ class MetadataExpression(models.Model):
     __repr__ = simple___repr__(
         'url_to_the_thing',
         'mediatype',
-        'hashed_expression',
+        'raw_hash',
     )
 
     id = models.AutoField(primary_key=True)  # db-internal id only
@@ -30,25 +30,23 @@ class MetadataExpression(models.Model):
 
     # content could be JSON, XML, text, audio, image, video...
     # TODO-quest: reasonable size limit (probably some few kilobytes)
-    raw_expression = models.BinaryField()
+    raw = models.BinaryField()
 
     # assumed sha256 (...for now)
     # TODO-quest: auto-compute hash on save -- in model or db trigger
-    hashed_expression = models.CharField(max_length=64)
+    raw_hash = models.CharField(max_length=64)
 
-    # TODO-quest: using harvest_job would make it complicated to answer "who gave us this?"
-    #             self.harvest_job.source_config.source.user... consider improvements
-    # harvest_job = models.ForeignKey('HarvestJob', null=True, on_delete=models.SET_NULL)
+    # TODO-quest: consider how to answer "whois the one who gave us this?"
 
     class Meta:
         constraints = [
             # TODO-quest: consider how to handle "same metadata for multiple URLs"
-            models.UniqueConstraint(fields=['hashed_expression'], name='unique_by_hashed_expression'),
+            models.UniqueConstraint(fields=['raw_hash'], name='unique_by_raw_hash'),
         ]
         indexes = [
             models.Index(fields=['url_to_the_thing'], name='index_by_url_to_the_thing'),
             models.Index(fields=['mediatype', '-local_timestamp'], name='index_by_recent_mediatype'),
         ]
 
-    def compute_hash(self):
-        self.hashed_expression = sha256(self.raw_expression).hexdigest()
+    def compute_raw_hash(self):
+        self.raw_hash = sha256(self.raw).hexdigest()
