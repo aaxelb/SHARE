@@ -5,12 +5,20 @@ from django.conf import settings
 from django.db import transaction, IntegrityError
 from django.utils import timezone
 
+from share import exceptions
 from share.harvest.exceptions import HarvesterConcurrencyError
 from share.models import (
     HarvestJob,
+    IngestJob,
+    NormalizedData,
+    RawDatum,
 )
+from share.models.core import FormattedMetadataRecord
+from share.models.ingest import RawDatumJob
+from share.regulate import Regulator
+from share.search import SearchIndexer
+from share.search.messages import MessageType
 from share.util import chunked
-from trove.models.metadata_expression import MetadataExpression
 
 
 logger = logging.getLogger(__name__)
@@ -175,10 +183,15 @@ class HarvestJobConsumer(JobConsumer):
             'harvester_version': job.source_config.harvester.version,
         }
 
-    def _consume_job(self, job, force, superfluous, limit=None):
+    def _consume_job(self, job, force, superfluous, limit=None, ingest=True):
         try:
-            for record_chunk in chunked(self._harvest_records(job, force, limit), 500):
-                MetadataExpression.objects.bulk_create(record_chunk)
+            if ingest:
+                datum_gen = (datum for datum in self._harvest(job, force, limit) if datum.created or superfluous)
+                for chunk in chunked(datum_gen, 500):
+                    self._bulk_schedule_ingest(job, chunk)
+            else:
+                for _ in self._harvest(job, force, limit):
+                    pass
         except HarvesterConcurrencyError as e:
             if not self.task:
                 raise
@@ -192,7 +205,152 @@ class HarvestJobConsumer(JobConsumer):
                 countdown=(random.random() + 1) * min(settings.CELERY_RETRY_BACKOFF_BASE ** self.task.request.retries, 60 * 15)
             )
 
-    def _harvest_records(self, job, force, limit):
+    def _harvest(self, job, force, limit):
+        error = None
+        datum_ids = []
         logger.info('Harvesting %r', job)
         harvester = job.source_config.get_harvester()
-        yield from harvester.fetch_date_range(job.start_date, job.end_date, limit=limit, force=force)
+
+        try:
+            for datum in harvester.harvest_date_range(job.start_date, job.end_date, limit=limit, force=force):
+                datum_ids.append(datum.id)
+                yield datum
+        except Exception as e:
+            error = e
+            raise error
+        finally:
+            try:
+                RawDatumJob.objects.bulk_create([
+                    RawDatumJob(job=job, datum_id=datum_id)
+                    for datum_id in datum_ids
+                ])
+            except Exception as e:
+                logger.exception('Failed to connect %r to raw data', job)
+                # Avoid shadowing the original error
+                if not error:
+                    raise e
+
+    def _bulk_schedule_ingest(self, job, datums):
+        # HACK to allow scheduling ingest tasks without cyclical imports
+        from share.tasks import ingest
+
+        job_kwargs = {
+            'source_config': job.source_config,
+            'source_config_version': job.source_config.version,
+            'transformer_version': job.source_config.transformer.version,
+            'regulator_version': Regulator.VERSION,
+        }
+        created_jobs = IngestJob.objects.bulk_get_or_create(
+            [IngestJob(raw_id=datum.id, suid_id=datum.suid_id, **job_kwargs) for datum in datums]
+        )
+        if not settings.INGEST_ONLY_CANONICAL_DEFAULT or job.source_config.source.canonical:
+            for job in created_jobs:
+                ingest.delay(job_id=job.id)
+
+
+class IngestJobConsumer(JobConsumer):
+    Job = IngestJob
+    lock_field = 'suid'
+
+    MAX_RETRIES = 5
+
+    def __init__(self, *args, only_canonical=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.only_canonical = only_canonical
+
+    def consume(self, job_id=None, **kwargs):
+        # TEMPORARY HACK: The query to find an unclaimed job (when job_id isn't given)
+        # is crazy-slow to the point that workers are barely getting anything else done
+        # and the urgent ingest queue is backing up.  All urgent tasks have a job_id,
+        # so we can skip those without a job_id and catch up in the task queue without
+        # negatively affecting OSF.
+        # REMINDER: when you remove this, also un-skip tests in
+        # tests/share/tasks/test_job_consumers
+        if job_id is None:
+            task = self.task
+            logger.warning('Skipping ingest task with job_id=None (task_id: %s)', task.request.id if task else None)
+            return
+        return super().consume(job_id=job_id, **kwargs)
+
+    def _current_versions(self, job):
+        return {
+            'source_config_version': job.source_config.version,
+            'transformer_version': job.source_config.transformer.version,
+            'regulator_version': Regulator.VERSION,
+        }
+
+    def _filter_ready(self, qs):
+        qs = super()._filter_ready(qs)
+        if self.only_canonical:
+            qs = qs.filter(
+                source_config__source__canonical=True,
+            )
+        return qs
+
+    def _consume_job(self, job, superfluous, force, apply_changes=True, index=True, urgent=False,
+                     pls_format_metadata=True, metadata_formats=None):
+        datum = None
+        graph = None
+
+        most_recent_raw = job.suid.most_recent_raw_datum()
+
+        # Check whether we've already done transform/regulate
+        if not superfluous:
+            datum = job.ingested_normalized_data.filter(raw=most_recent_raw).order_by('-created_at').first()
+
+        if superfluous or datum is None:
+            graph = self._transform(job, most_recent_raw)
+            if not graph:
+                return
+            graph = self._regulate(job, graph)
+            if not graph:
+                return
+            datum = NormalizedData.objects.create(
+                data=graph.to_jsonld(),
+                source=job.suid.source_config.source.user,
+                raw=most_recent_raw,
+            )
+            job.ingested_normalized_data.add(datum)
+
+        if pls_format_metadata:
+            records = FormattedMetadataRecord.objects.save_formatted_records(
+                job.suid,
+                record_formats=metadata_formats,
+                normalized_datum=datum,
+            )
+            # TODO consider whether to handle the possible but rare-to-nonexistent case where
+            # `records` is empty this time but there were records in the past -- would need to
+            # remove the previous from the index
+            if records and index:
+                self._queue_for_indexing(job.suid, urgent)
+
+    def _transform(self, job, raw):
+        transformer = job.suid.source_config.get_transformer()
+
+        try:
+            graph = transformer.transform(raw)
+        except exceptions.TransformError as e:
+            job.fail(e)
+            return None
+
+        if not graph:
+            if not raw.normalizeddata_set.exists():
+                logger.warning('Graph was empty for %s, setting no_output to True', raw)
+                RawDatum.objects.filter(id=raw.id).update(no_output=True)
+            else:
+                logger.warning('Graph was empty for %s, but a normalized data already exists for it', raw)
+            return None
+
+        return graph
+
+    def _regulate(self, job, graph):
+        try:
+            Regulator(job).regulate(graph)
+            return graph
+        except exceptions.RegulateError as e:
+            job.fail(e)
+            return None
+
+    def _queue_for_indexing(self, suid, urgent):
+        indexer = SearchIndexer(self.task.app) if self.task else SearchIndexer()
+        indexer.send_messages(MessageType.INDEX_SUID, [suid.id], urgent=urgent)
