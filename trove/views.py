@@ -35,7 +35,7 @@ async def expression_basket(request, url_to_the_thing):
         await put_expression_into_basket(
             url_to_the_thing=url_to_the_thing,
             mediatype=request.headers['Content-Type'],
-            raw=request.body,
+            raw_expression=request.body,
         )
         expression_basket = await get_expression_basket(url_to_the_thing)
         return JsonResponse(
@@ -60,9 +60,9 @@ def get_expression_basket(url_to_the_thing):
     return [
         {
             'mediatype': v['mediatype'],
-            'raw_hash': v['raw_hash'],
+            'raw-hash': v['raw_hash'],
             'url-to-raw-expression': reverse('trove:raw-expression', kwargs={
-                'raw-hash': v['raw_hash'],
+                'raw_hash': v['raw_hash'],
             }),
         }
         for v in expression_qs
@@ -126,7 +126,7 @@ def get_feed_expressions(mediatype):
 def serialize_feed_expression(expression):
     url_to_raw_expression = reverse(
         'trove:raw-expression',
-        kwargs={'raw-hash': expression.raw_hash},
+        kwargs={'raw_hash': expression.raw_hash},
     )
     return {
         'url-to-the-thing': expression.url_to_the_thing,

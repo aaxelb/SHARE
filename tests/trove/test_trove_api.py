@@ -16,13 +16,13 @@ and in the darkness, bind them.
 
 
 def assert_mediatypes(response, expected_mediatypes):
-    response_json = json.parse(response.content)
+    response_json = json.loads(response.content)
     observed_mediatypes = response_json['mediatype-basket']
     assert set(observed_mediatypes) == set(expected_mediatypes)
 
 
 def assert_raw_expression(response, expected_raw, expected_mediatype):
-    observed_mediatype = response.content_type
+    observed_mediatype = response.headers['content-type']
     assert observed_mediatype == expected_mediatype
 
     observed_raw_expression = response.content
@@ -30,10 +30,19 @@ def assert_raw_expression(response, expected_raw, expected_mediatype):
 
 
 def assert_expression_basket(response, expected_hashes):
-    response_json = json.parse(response.content)
+    response_json = json.loads(response.content)
     observed_hashes = [
-        exp['hashed-expression']
+        exp['raw-hash']
         for exp in response_json['expression-basket']
+    ]
+    assert set(observed_hashes) == set(expected_hashes)
+
+
+def assert_feed(response, expected_hashes):
+    response_json = json.loads(response.content)
+    observed_hashes = [
+        exp['raw-hash']
+        for exp in response_json['expression-feed']
     ]
     assert set(observed_hashes) == set(expected_hashes)
 
@@ -44,7 +53,9 @@ def test_one_flow():
 
     # start out with nothin
     mediatype_response = client.get('/trove/mediatype-basket')
-    assert_mediatypes(mediatype_response, [])
+    assert_mediatypes(mediatype_response, expected_mediatypes=[])
+    feed_response = client.get(f'/trove/expression-feed///{SCHEMA_METADATA_MEDIATYPE}')
+    assert_feed(feed_response, expected_hashes=[])
 
     # put a thing in
     put_response = client.put(
@@ -57,15 +68,25 @@ def test_one_flow():
     # is something there now?
     mediatype_response = client.get('/trove/mediatype-basket')
     assert_mediatypes(
-        client,
+        mediatype_response,
         expected_mediatypes=[SCHEMA_METADATA_MEDIATYPE],
     )
 
     raw_response = client.get(f'/trove/raw-expression///{SCHEMA_METADATA_HASH}')
-    assert_raw_expression(raw_response, expected_raw=SCHEMA_METADATA)
+    assert_raw_expression(
+        raw_response,
+        expected_raw=SCHEMA_METADATA,
+        expected_mediatype=SCHEMA_METADATA_MEDIATYPE,
+    )
 
     expression_basket_response = client.get(f'/trove/expression-basket///{SCHEMA_URL}')
     assert_expression_basket(
         expression_basket_response,
+        expected_hashes=[SCHEMA_METADATA_HASH],
+    )
+
+    feed_response = client.get(f'/trove/expression-feed///{SCHEMA_METADATA_MEDIATYPE}')
+    assert_feed(
+        feed_response,
         expected_hashes=[SCHEMA_METADATA_HASH],
     )
