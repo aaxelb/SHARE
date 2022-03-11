@@ -3,29 +3,9 @@
 This document is a starting point and reference to familiarize yourself with this codebase.
 
 ## Bird's eye view
-In short, SHARE/Trove takes metadata records (in any supported input format),
-ingests them, and makes them available in any supported output format.
-```
-            ┌───────────────────────────────────────────┐
-            │                  Ingest                   │
-            │                                  ┌──────┐ │
-            │ ┌─────────────────────────┐   ┌──►Format├─┼────┐
-            │ │        Normalize        │   │  └──────┘ │    │
-            │ │                         │   │           │    ▼
-┌───────┐   │ │ ┌─────────┐  ┌────────┐ │   │  ┌──────┐ │    save as
-│Harvest├─┬─┼─┼─►Transform├──►Regulate├─┼─┬─┼──►Format├─┼─┬─►FormattedMetadataRecord
-└───────┘ │ │ │ └─────────┘  └────────┘ │ │ │  └──────┘ │ │
-          │ │ │                         │ │ .           │ │  ┌───────┐
-          │ │ └─────────────────────────┘ │ .           │ └──►Indexer│
-          │ │                             │ .           │    └───────┘
-          │ └─────────────────────────────┼─────────────┘  some formats also
-          │                               │                indexed separately
-          ▼                               ▼
-        save as                         save as
-        RawDatum                        NormalizedData
-```
 
-## Code map
+
+## Code map (TODO-quest)
 
 A brief look at important areas of code as they happen to exist now.
 
@@ -87,7 +67,13 @@ and pipeline logs
 
 `tests/` are tests.
 
-## Cross-cutting concerns
+## Cross-cutting concerns (TODO-quest)
+
+### XML safety
+Use [`defusedxml`](https://docs.python.org/3/library/xml.html#defusedxml-package) for parsing
+XML that could even *possibly* be malicious (e.g. fetched via internet at runtime).
+
+Use [`lxml`](https://lxml.de) for building XML, validating against XSD, applying XSLT transforms.
 
 ### Immutable metadata
 
