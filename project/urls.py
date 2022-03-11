@@ -34,6 +34,7 @@ urlpatterns = [
     url(r'^api/v1/', include('api.urls_v1', namespace='api_v1')),
     url(r'^oai-pmh/', OAIPMHView.as_view(), name='oai-pmh'),
     url(r'^o/', include('oauth2_provider.urls', namespace='oauth2_provider')),
+    url(r'^trove/', include('trove.urls'), namespace='trove'),
     url(r'^accounts/social/login/cancelled/', osf_oauth2_adapter_views.login_errored_cancelled),
     url(r'^accounts/social/login/error/', osf_oauth2_adapter_views.login_errored_cancelled),
     url(r'^accounts/', include('allauth.urls')),

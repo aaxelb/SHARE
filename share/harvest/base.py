@@ -12,7 +12,7 @@ from django.utils import timezone
 
 from share.harvest.ratelimit import RateLimittedProxy
 from share.harvest.serialization import DeprecatedDefaultSerializer
-from share.models.metadata_representation import MetadataRepresentation
+from trove.models.metadata_expression import MetadataExpression
 
 
 logger = logging.getLogger(__name__)
@@ -55,7 +55,7 @@ class BaseHarvester(metaclass=abc.ABCMeta):
 
     def fetch_by_id(self, identifier, **kwargs):
         datum = self._do_fetch_by_id(identifier, **self._get_kwargs(**kwargs))
-        return MetadataRepresentation(
+        return MetadataExpression(
             object_url=identifier,  # TODO-quest: guarantee url in harvester
             content=self.serializer.serialize(datum),
         )
@@ -132,7 +132,7 @@ class BaseHarvester(metaclass=abc.ABCMeta):
             raise TypeError('{!r}._do_fetch must return a GeneratorType for optimal performance and memory usage'.format(self))
 
         for i, blob in enumerate(data_gen):
-            result = MetadataRepresentation(
+            result = MetadataExpression(
                 object_url=blob[0],
                 representation_content=self.serializer.serialize(blob[1]),
                 # TODO-quest: source timestamp?

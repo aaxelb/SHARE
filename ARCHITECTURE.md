@@ -71,7 +71,7 @@ and pipeline logs
 
 ### XML safety
 Use [`defusedxml`](https://docs.python.org/3/library/xml.html#defusedxml-package) for parsing
-XML that could even *possibly* be malicious (e.g. fetched via internet at runtime).
+XML that could even *possibly* be malicious (e.g. fetched/received via internet)
 
 Use [`lxml`](https://lxml.de) for building XML, validating against XSD, applying XSLT transforms.
 

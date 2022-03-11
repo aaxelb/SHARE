@@ -90,6 +90,7 @@ INSTALLED_APPS = [
 
     'share',
     'api',
+    'trove',
 
     'bots.elasticsearch',
 ]

@@ -9,8 +9,8 @@ from share.harvest.exceptions import HarvesterConcurrencyError
 from share.models import (
     HarvestJob,
 )
-from share.models.metadata_representation import MetadataRepresentation
 from share.util import chunked
+from trove.models.metadata_expression import MetadataExpression
 
 
 logger = logging.getLogger(__name__)
@@ -178,7 +178,7 @@ class HarvestJobConsumer(JobConsumer):
     def _consume_job(self, job, force, superfluous, limit=None):
         try:
             for record_chunk in chunked(self._harvest_records(job, force, limit), 500):
-                MetadataRepresentation.objects.bulk_create(record_chunk)
+                MetadataExpression.objects.bulk_create(record_chunk)
         except HarvesterConcurrencyError as e:
             if not self.task:
                 raise
