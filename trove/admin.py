@@ -1,3 +1,10 @@
 from django.contrib import admin
 
-# Register your models here.
+from trove.models.metadata_expression import MetadataExpression
+
+
+class MetadataExpressionAdmin(admin.ModelAdmin):
+    pass
+
+
+admin.site.register(MetadataExpression, MetadataExpressionAdmin)

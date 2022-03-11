@@ -71,6 +71,7 @@ jobs:
         run: |
           coverage run -m pytest -x --create-db
           coverage run --append -m behave
+          coverage run --append -m python manage.py test --keepdb
         env:
           DATABASE_PASSWORD: postgres
 
