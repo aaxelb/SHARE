@@ -21,8 +21,8 @@ async def mediatype_basket(request):
 def get_all_mediatypes():
     return list(
         MetadataExpression.objects
-        .values_list('mediatype', flat=True)
-        .distinct('mediatype')
+        .values_list('raw_mediatype', flat=True)
+        .distinct('raw_mediatype')
     )
 
 
@@ -52,14 +52,14 @@ def get_expression_basket(url_to_the_thing):
         MetadataExpression.objects
         .filter(url_to_the_thing=url_to_the_thing)
         .values(
-            'mediatype',
+            'raw_mediatype',
             'raw_hash',
         )
     )
 
     return [
         {
-            'mediatype': v['mediatype'],
+            'raw-mediatype': v['raw_mediatype'],
             'raw-hash': v['raw_hash'],
             'url-to-raw-expression': reverse('trove:raw-expression', kwargs={
                 'raw_hash': v['raw_hash'],
@@ -75,7 +75,7 @@ def put_expression_into_basket(url_to_the_thing, mediatype, raw_expression):
 
     expression = MetadataExpression(
         url_to_the_thing=url_to_the_thing,
-        mediatype=mediatype,
+        raw_mediatype=mediatype,
         raw=raw_expression,
     )
     expression.compute_raw_hash()
@@ -89,7 +89,7 @@ async def raw_expression(request, raw_hash):
             expression = await get_expression(raw_hash)
             return HttpResponse(
                 content=expression.raw,
-                content_type=expression.mediatype,
+                content_type=expression.raw_mediatype,
             )
         except MetadataExpression.DoesNotExist:
             return HttpResponse(status=404)
@@ -118,7 +118,7 @@ def get_feed_expressions(mediatype):
     # TODO-quest: consider allowing wildcard mediatypes like 'text/*', '*/*'
     return list(
         MetadataExpression.objects
-        .filter(mediatype=mediatype)
+        .filter(raw_mediatype=mediatype)
         .defer('raw')
     )
 
@@ -131,6 +131,6 @@ def serialize_feed_expression(expression):
     return {
         'url-to-the-thing': expression.url_to_the_thing,
         'url-to-raw-expression': url_to_raw_expression,
-        'raw-mediatype': expression.mediatype,
+        'raw-mediatype': expression.raw_mediatype,
         'raw-hash': expression.raw_hash,
     }

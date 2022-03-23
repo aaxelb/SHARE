@@ -7,7 +7,7 @@ from trove.util import simple___repr__
 class MetadataExpression(models.Model):
     __repr__ = simple___repr__(
         'url_to_the_thing',
-        'mediatype',
+        'raw_mediatype',
         'raw_hash',
     )
 
@@ -15,14 +15,14 @@ class MetadataExpression(models.Model):
     local_timestamp = models.DateTimeField(auto_now=True)
 
     # I'm talking about *the thing*! That thing over there! This URL is a map to find it! Do you see?
-    #   (tho if the thing is anywhere beside digitalspace, might still only get info about it)
+    # (tho if the thing is anywhere beside digitalspace, might still only get info about it)
     # TODO-quest: validate URL
     url_to_the_thing = models.URLField()
 
-    # same as the HTTP Content-Type header (https://httpwg.org/specs/rfc7231.html#header.content-type)
+    #  HTTP Content-Type header (https://httpwg.org/specs/rfc7231.html#header.content-type)
     # (unrelated to django.contrib.contenttypes)
     # TODO-quest: validation? or let 'em be wild?
-    mediatype = models.TextField()
+    raw_mediatype = models.TextField()
 
     # TODO-quest: also embrace HTTP's Language and Encoding headers?
     # language = models.TextField()
@@ -44,8 +44,11 @@ class MetadataExpression(models.Model):
             models.UniqueConstraint(fields=['raw_hash'], name='unique_by_raw_hash'),
         ]
         indexes = [
+            # for getting all metadata expressions about a thing (given its URL)
             models.Index(fields=['url_to_the_thing'], name='index_by_url_to_the_thing'),
-            models.Index(fields=['mediatype', '-local_timestamp'], name='index_by_recent_mediatype'),
+
+            # for "feeds" of recent expressions filtered by mediatype
+            models.Index(fields=['raw_mediatype', '-local_timestamp'], name='index_by_recent_mediatype'),
         ]
 
     def compute_raw_hash(self):
