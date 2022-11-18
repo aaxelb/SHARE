@@ -108,6 +108,8 @@ setup(
         'share.metadata_formats': [
             'sharev2_elastic = share.metadata_formats.sharev2_elastic:ShareV2ElasticFormatter',
             'oai_dc = share.metadata_formats.oai_dc:OaiDcFormatter',
+            'turtle = share.metadata_formats.turtle:RdfTurtleFormatter',
+            # 'browsable_html = share.metadata_formats.browsable_html:BrowsableHtmlFormatter',
         ],
     }
 )
