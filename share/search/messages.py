@@ -17,6 +17,7 @@ class MessageType(Enum):
     INDEX_SUBJECT = 'Subject'
 
     INDEX_SUID = 'suid'
+    DELETE_SUID = 'del-suid'
     BACKFILL_SUID = 'fill-suid'
 
     @property
@@ -44,6 +45,9 @@ class IndexMessageResponse(typing.NamedTuple):
 class MessagesChunk:
     message_type: MessageType
     target_ids_chunk: typing.Iterable[int]
+=======
+    DELETE_SUID = 'delete-suid'
+>>>>>>> wip
 
     def as_dicts(self):
         for target_id in self.target_ids_chunk:

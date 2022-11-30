@@ -28,6 +28,7 @@ class Sharev2Elastic5IndexStrategy(Elastic5IndexStrategy):
         return {
             MessageType.INDEX_SUID,
             MessageType.BACKFILL_SUID,
+            MessageType.DELETE_SUID,
         }
 
     @property
