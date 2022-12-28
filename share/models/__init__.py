@@ -1,6 +1,5 @@
 # NOTE: The order of these imports actually matter
 from share.models.formatted_metadata_record import FormattedMetadataRecord
-from share.models.known_pid import KnownPid
 from share.models.suid import SourceUniqueIdentifier
 from share.models.index_backfill_status import IndexBackfillStatus
 from share.models.core import *  # noqa
@@ -18,7 +17,6 @@ __all__ = (
     'ShareUser',
     'NormalizedData',
     'FormattedMetadataRecord',
-    'KnownPid',
     'SourceUniqueIdentifier',
     'IndexBackfillStatus',
 )
