@@ -30,7 +30,7 @@ class TestRawDataJanitor:
     def test_unprocessed_data(self, rds):
         assert rawdata_janitor() == 55
         assert IngestJob.objects.count() == 55
-        assert all(rd.ingest_jobs.count() == 1 for rd in rds)
+        assert all(rd.suid.ingest_job is not None for rd in rds)
 
     def test_idempotent(self, rds):
         for rd in rds:
