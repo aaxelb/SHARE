@@ -330,6 +330,14 @@ if ELASTICSEARCH8_URL:
             'CERT_PATH': ELASTICSEARCH8_CERT_PATH,
         },
     }
+    ELASTICSEARCH['INDEX_STRATEGIES']['trove_v0'] = {
+        'INDEX_STRATEGY_CLASS': 'share.search.index_strategy.trove_v0:TroveV0IndexStrategy',
+        'CLUSTER_SETTINGS': {
+            'URL': ELASTICSEARCH8_URL,
+            'AUTH': (ELASTICSEARCH8_USERNAME, ELASTICSEARCH8_SECRET),
+            'CERT_PATH': ELASTICSEARCH8_CERT_PATH,
+        },
+    }
 
 # Seconds, not an actual celery settings
 CELERY_RETRY_BACKOFF_BASE = int(os.environ.get('CELERY_RETRY_BACKOFF_BASE', 2 if DEBUG else 10))
