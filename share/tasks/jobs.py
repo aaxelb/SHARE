@@ -5,7 +5,6 @@ from django.conf import settings
 from django.db import transaction, IntegrityError
 from django.utils import timezone
 
-from share.extract import get_rdf_extractor_class
 from share.harvest.exceptions import HarvesterConcurrencyError
 from share.models import (
     FormattedMetadataRecord,
@@ -294,12 +293,6 @@ class IngestJobConsumer(JobConsumer):
             normalized_datum = self._extract(most_recent_raw)
             if normalized_datum:
                 job.ingested_normalized_data.add(normalized_datum)
-        if pls_format_metadata:
-            FormattedMetadataRecord.objects.save_formatted_records(
-                job.suid,
-                record_formats=metadata_formats,
-                normalized_datum=normalized_datum,
-            )
         if index:
             self._queue_for_indexing(job.suid, urgent)
 
