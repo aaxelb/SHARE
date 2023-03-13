@@ -182,11 +182,12 @@ class Elastic8IndexStrategy(IndexStrategy):
         )
         for (ok, response) in bulk_stream:
             op_type, response_body = next(iter(response.items()))
+            is_handled = ok or (op_type == 'delete' and response_body.get('result') == 'not_found')
             message_target_id = self.get_message_target_id(response_body['_id'])
             done_counter[message_target_id] += 1
             if done_counter[message_target_id] >= len(indexnames):
                 yield messages.IndexMessageResponse(
-                    is_handled=ok,
+                    is_handled=is_handled,
                     index_message=messages.IndexMessage(messages_chunk.message_type, message_target_id),
                     error_label=response_body,
                 )

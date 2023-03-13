@@ -18,6 +18,8 @@ logger = logging.getLogger(__name__)
 
 RESULTS_PER_PAGE = 250
 
+DEFAULT_INDEX_STRATEGY = 'sharev2_elastic5'  # TODO: switchable in admin
+
 
 def prepare_string(s):
     if s:
@@ -40,6 +42,8 @@ class MetadataRecordsRSS(Feed):
     def get_object(self, request):
         self._order = request.GET.get('order')
         elastic_query = request.GET.get('elasticQuery')
+        requested_index_strategy = request.GET.get('indexStrategy')
+        index_strategy = IndexStrategy.by_request(requested_index_strategy)
 
         if self._order not in {'date_modified', 'date_updated', 'date_created', 'date_published'}:
             self._order = 'date_modified'

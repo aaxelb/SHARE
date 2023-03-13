@@ -121,10 +121,12 @@ class Elastic5IndexStrategy(IndexStrategy):
         for (ok, response) in bulk_stream:
             op_type, response_body = next(iter(response.items()))
             message_target_id = self.get_message_target_id(response_body['_id'])
+            is_handled = ok or (op_type == 'delete' and response_body.get('result') == 'not_found')
+            error_label = None if is_handled else response_body
             yield messages.IndexMessageResponse(
-                is_handled=ok,
+                is_handled=is_handled,
                 index_message=messages.IndexMessage(messages_chunk.message_type, message_target_id),
-                error_label=response_body,
+                error_label=error_label,
             )
 
     # abstract method from IndexStrategy

@@ -68,7 +68,10 @@ def ingest(self, only_canonical=None, **kwargs):
 
 
 @celery.shared_task(bind=True)
-def schedule_index_backfill(self, index_name):
+def schedule_index_backfill(self, index_backfill_id):
+    index_backfill_status = db.IndexBackfillStatus.objects.get(id=index_backfill_id)
+    assert index_backfill_status.backfill_status == db.IndexBackfillStatus.INITIATED
+
     chunk_size = settings.ELASTICSEARCH['CHUNK_SIZE']
     suid_id_queryset = (
         db.SourceUniqueIdentifier

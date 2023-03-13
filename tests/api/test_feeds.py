@@ -5,6 +5,7 @@ import faker
 from lxml import etree
 
 from share.util.graph import MutableGraph
+from share.metadata_formats.sharev2_elastic import ShareV2ElasticFormatter
 
 from tests.share.normalize import factories as f
 
@@ -19,16 +20,30 @@ NAMESPACES = {'atom': 'http://www.w3.org/2005/Atom'}
 class TestFeed:
 
     @pytest.fixture()
-    def fake_items(self, index_records):
+    def fake_items(self, Graph):
         records = [
-            f.CreativeWork(
+            Graph(f.CreativeWork(
                 identifiers=[f.WorkIdentifier()],
                 agent_relations=[
                     f.Creator(),
                     f.Creator(),
                 ],
-            )
+            )).to_jsonld()
             for i in range(11)
+        ]
+        normds = [
+            f.NormalizedDataFactory(
+                data=record,
+                raw=f.RawDatumFactory(
+                    datum='',
+                ),
+            )
+            for record in records
+        ]
+        formatter = ShareV2ElasticFormatter()
+        formatted_items = [
+            formatter.format(normd)
+            for normd in normds
         ]
         return index_records(records)
 
