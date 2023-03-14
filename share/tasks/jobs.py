@@ -13,6 +13,7 @@ from share.models import (
     NormalizedData,
 )
 from share.models.ingest import RawDatumJob
+from share.push.ingest import extract
 from share.search import IndexMessenger
 from share.search.messages import MessageType
 from share.util import chunked
@@ -290,7 +291,7 @@ class IngestJobConsumer(JobConsumer):
                 .first()
             )
         if not normalized_datum:
-            normalized_datum = self._extract(most_recent_raw)
+            normalized_datum = extract(most_recent_raw)
             if normalized_datum:
                 job.ingested_normalized_data.add(normalized_datum)
         if index:

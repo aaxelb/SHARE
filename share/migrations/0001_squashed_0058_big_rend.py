@@ -62,7 +62,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.AutoField(primary_key=True, serialize=False)),
                 ('created_at', models.DateTimeField(auto_now_add=True, null=True)),
-                ('data', share.models.fields.DateTimeAwareJSONField(validators=[share.models.validators.JSONLDValidator()])),
+                ('data', share.models.fields.DateTimeAwareJSONField(validators=[share.models.validators.JSONLDValidator()], null=True)),
             ],
         ),
         migrations.CreateModel(
@@ -442,9 +442,9 @@ class Migration(migrations.Migration):
                 ('date_created', models.DateTimeField(auto_now_add=True)),
                 ('date_modified', models.DateTimeField(auto_now=True, db_index=True)),
                 ('share_version', models.TextField(default=share.models.jobs.get_share_version, editable=False)),
-                ('source_config_version', models.PositiveIntegerField()),
-                ('transformer_version', models.PositiveIntegerField()),
-                ('regulator_version', models.PositiveIntegerField()),
+                ('source_config_version', models.PositiveIntegerField(null=True)),
+                ('transformer_version', models.PositiveIntegerField(null=True)),
+                ('regulator_version', models.PositiveIntegerField(null=True)),
                 ('retries', models.IntegerField(null=True)),
             ],
         ),
@@ -497,12 +497,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='ingestjob',
             name='raw',
-            field=models.ForeignKey(editable=False, on_delete=django.db.models.deletion.CASCADE, related_name='ingest_jobs', to='share.RawDatum'),
+            field=models.ForeignKey(editable=False, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='ingest_jobs', to='share.RawDatum'),
         ),
         migrations.AddField(
             model_name='ingestjob',
             name='source_config',
-            field=models.ForeignKey(editable=False, on_delete=django.db.models.deletion.CASCADE, related_name='ingest_jobs', to='share.SourceConfig'),
+            field=models.ForeignKey(editable=False, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='ingest_jobs', to='share.SourceConfig'),
         ),
         migrations.AddField(
             model_name='ingestjob',

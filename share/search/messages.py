@@ -45,9 +45,6 @@ class IndexMessageResponse(typing.NamedTuple):
 class MessagesChunk:
     message_type: MessageType
     target_ids_chunk: typing.Iterable[int]
-=======
-    DELETE_SUID = 'delete-suid'
->>>>>>> wip
 
     def as_dicts(self):
         for target_id in self.target_ids_chunk:
