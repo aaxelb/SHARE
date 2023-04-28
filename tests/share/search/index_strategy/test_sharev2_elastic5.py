@@ -1,6 +1,7 @@
 import json
 
 from tests import factories
+from share.util import IDObfuscator
 from ._with_real_services import RealElasticTestCase
 
 
@@ -21,9 +22,14 @@ class TestSharev2Elastic5(RealElasticTestCase):
 
     # abstract method from RealElasticTestCase
     def get_formatted_record(self):
+        suid = factories.SourceUniqueIdentifierFactory()
         return factories.FormattedMetadataRecordFactory(
+            suid=suid,
             record_format='sharev2_elastic',
-            formatted_metadata=json.dumps({'title': 'hello'})
+            formatted_metadata=json.dumps({
+                'id': IDObfuscator.encode(suid),
+                'title': 'hello',
+            })
         )
 
     def test_without_daemon(self):

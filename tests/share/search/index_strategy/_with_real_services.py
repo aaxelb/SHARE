@@ -107,8 +107,8 @@ class RealElasticTestCase(TransactionTestCase):
         assert len(responses) == 1
         assert responses[0].is_done
         assert responses[0].index_message.target_id == formatted_record.suid_id
-        self.index_strategy.es8_client.indices.refresh(index=self.current_index.indexname)
-        search_response = self.current_index.pls_handle_query__sharev2_backcompat({})
+        self.current_index.pls_refresh()
+        search_response = self.current_index.pls_handle_query__sharev2_backcompat()
         hits = search_response['hits']['hits']
         assert len(hits) == 1
         assert hits[0]['_source'] == json.loads(formatted_record.formatted_metadata)
@@ -126,10 +126,10 @@ class RealElasticTestCase(TransactionTestCase):
         )
         for _ in range(23):
             daemon_stop_event.wait(timeout=0.2)
-            self.index_strategy.es8_client.indices.refresh(index=self.current_index.indexname)
+            self.current_index.pls_refresh()
             index_status = self.current_index.pls_get_status()
             if index_status.doc_count:
-                search_response = self.current_index.pls_handle_query__sharev2_backcompat({})
+                search_response = self.current_index.pls_handle_query__sharev2_backcompat()
                 hits = search_response['hits']['hits']
                 assert len(hits) == 1
                 assert hits[0]['_source'] == json.loads(formatted_record.formatted_metadata)

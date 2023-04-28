@@ -327,7 +327,7 @@ class Sharev2Elastic5IndexStrategy(IndexStrategy):
                         'mappings': self.index_strategy._index_mappings(),
                     },
                 )
-            indices_api.refresh(index=self.indexname)
+            self.pls_refresh()
             logger.debug('Waiting for yellow status')
             (
                 self.index_strategy.es5_client.cluster
@@ -348,19 +348,25 @@ class Sharev2Elastic5IndexStrategy(IndexStrategy):
             )
 
         # abstract method from IndexStrategy.SpecificIndex
+        def pls_refresh(self):
+            (
+                self.index_strategy.es5_client.indices
+                .refresh(index=self.indexname)
+            )
+            logger.info('Refreshed index %s', self.indexname)
+
+        # abstract method from IndexStrategy.SpecificIndex
         def pls_delete(self):
             logger.warning(f'{self.__class__.__name__}: deleting index {self.indexname}')
             (
-                self.index_strategy
-                .es5_client.indices
+                self.index_strategy.es5_client.indices
                 .delete(index=self.indexname, ignore=[400, 404])
             )
 
         # abstract method from IndexStrategy.SpecificIndex
         def pls_check_exists(self):
             return (
-                self.index_strategy
-                .es5_client.indices
+                self.index_strategy.es5_client.indices
                 .exists(index=self.indexname)
             )
 
@@ -368,13 +374,11 @@ class Sharev2Elastic5IndexStrategy(IndexStrategy):
         def pls_get_status(self) -> IndexStatus:
             try:
                 stats = (
-                    self.index_strategy
-                    .es5_client.indices
+                    self.index_strategy.es5_client.indices
                     .stats(index=self.indexname, metric='docs')
                 )
                 existing_indexes = (
-                    self.index_strategy
-                    .es5_client.indices
+                    self.index_strategy.es5_client.indices
                     .get_settings(index=self.indexname, name='index.creation_date')
                 )
                 index_settings = existing_indexes[self.indexname]
@@ -401,14 +405,14 @@ class Sharev2Elastic5IndexStrategy(IndexStrategy):
             )
 
         # optional method from IndexStrategy.SpecificIndex
-        def pls_handle_query__sharev2_backcompat(self, request_body, request_queryparams=None) -> dict:
+        def pls_handle_query__sharev2_backcompat(self, request_body=None, request_queryparams=None) -> dict:
             '''the definitive sharev2-search api: passthru to elasticsearch version 5
             '''
             try:
                 return self.index_strategy.es5_client.search(
                     index=self.indexname,
-                    body=request_body,
-                    params=request_queryparams,
+                    body=request_body or {},
+                    params=request_queryparams or {},
                 )
             except elasticsearch5.TransportError as error:
                 raise exceptions.IndexStrategyError() from error  # TODO: error messaging
