@@ -3,6 +3,7 @@ from dateutil import parser
 from lxml import etree
 from primitive_metadata import primitive_rdf
 
+from share.util.xml import strip_illegal_xml_chars
 from trove.vocab.namespaces import OAI, OAI_DC
 
 
@@ -56,7 +57,7 @@ def SubEl(parent, tag_name, text=None, **kwargs):
         _language_tag = text.language
         if _language_tag:
             element.set(ns('xml', 'lang'), text.language)
-        element.text = text.unicode_value
+        element.text = strip_illegal_xml_chars(text.unicode_value)
     elif text:
-        element.text = text
+        element.text = strip_illegal_xml_chars(text)
     return element
