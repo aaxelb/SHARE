@@ -49,6 +49,10 @@ class PageCursor:
             else int(self.page_size)
         )
 
+    @property
+    def is_complete_page(self) -> bool:
+        return self.bounded_page_size == self.page_size
+
     def as_queryparam_value(self) -> str:
         _cls_key = _PageCursorTypes(type(self)).name
         _as_json = json.dumps([_cls_key, *dataclasses.astuple(self)])
@@ -85,7 +89,7 @@ class OffsetCursor(PageCursor):
     def is_valid(self) -> bool:
         _end_offset = (
             self.total_count
-            if self.bounded_page_size == self.page_size
+            if self.is_complete_page
             else min(self.total_count, self.page_size)
         )
         return (
