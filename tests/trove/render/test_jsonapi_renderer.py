@@ -151,19 +151,19 @@ class TestJsonapiSearchRenderer(_BaseJsonapiRendererTest, _base.TrovesearchJsonR
                         "relationships": {
                             "indexCard": {
                                 "data": {
-                                    "id": "aHR0cDovL2JsYXJnLmV4YW1wbGUvdm9jYWIvYUNhcmRkZA==",
+                                    "id": "aHR0cDovL2JsYXJnLmV4YW1wbGUvdm9jYWIvYUNhcmRk",
                                     "type": "index-card"
                                 }
                             }
                         }
                     },
                     {
-                        "id": "112358-1",
+                        "id": "112358-2",
                         "type": "search-result",
                         "relationships": {
                             "indexCard": {
                                 "data": {
-                                    "id": "aHR0cDovL2JsYXJnLmV4YW1wbGUvdm9jYWIvYUNhcmRk",
+                                    "id": "aHR0cDovL2JsYXJnLmV4YW1wbGUvdm9jYWIvYUNhcmRkZA==",
                                     "type": "index-card"
                                 }
                             }
