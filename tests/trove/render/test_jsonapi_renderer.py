@@ -114,15 +114,15 @@ class TestJsonapiSearchRenderer(_BaseJsonapiRendererTest, _base.TrovesearchJsonR
                         "searchResultPage": {
                             "data": [
                                 {
-                                    "id": "dc0604c7e9c07576b57646119784de65e7204fc7c860cc1b9be8ebec5f2b96ba",
+                                    "id": "112358-0",
                                     "type": "search-result"
                                 },
                                 {
-                                    "id": "367b30e8a0eece555ac15fda82bb28f535f1f8beb97397c01162d619cd7058bc",
+                                    "id": "112358-1",
                                     "type": "search-result"
                                 },
                                 {
-                                    "id": "26afa96fdbd189e4c4aeac921a42e9d3f09eb94b59ffd4b9ad300c524536cc97",
+                                    "id": "112358-2",
                                     "type": "search-result"
                                 }
                             ]
@@ -134,7 +134,7 @@ class TestJsonapiSearchRenderer(_BaseJsonapiRendererTest, _base.TrovesearchJsonR
                 },
                 "included": [
                     {
-                        "id": "dc0604c7e9c07576b57646119784de65e7204fc7c860cc1b9be8ebec5f2b96ba",
+                        "id": "112358-0",
                         "type": "search-result",
                         "relationships": {
                             "indexCard": {
@@ -146,24 +146,24 @@ class TestJsonapiSearchRenderer(_BaseJsonapiRendererTest, _base.TrovesearchJsonR
                         }
                     },
                     {
-                        "id": "26afa96fdbd189e4c4aeac921a42e9d3f09eb94b59ffd4b9ad300c524536cc97",
+                        "id": "112358-1",
                         "type": "search-result",
                         "relationships": {
                             "indexCard": {
                                 "data": {
-                                    "id": "db657130943f3c9f4cc527b23a6a246b095f62673f2cc7fc906d5914678bd337",
+                                    "id": "aHR0cDovL2JsYXJnLmV4YW1wbGUvdm9jYWIvYUNhcmRkZA==",
                                     "type": "index-card"
                                 }
                             }
                         }
                     },
                     {
-                        "id": "367b30e8a0eece555ac15fda82bb28f535f1f8beb97397c01162d619cd7058bc",
+                        "id": "112358-1",
                         "type": "search-result",
                         "relationships": {
                             "indexCard": {
                                 "data": {
-                                    "id": "4e6134629cc3117a123cee8a8dc633a46401c9725f01d63f689d7b84f2422359",
+                                    "id": "aHR0cDovL2JsYXJnLmV4YW1wbGUvdm9jYWIvYUNhcmRk",
                                     "type": "index-card"
                                 }
                             }
@@ -197,7 +197,7 @@ class TestJsonapiSearchRenderer(_BaseJsonapiRendererTest, _base.TrovesearchJsonR
                         }
                     },
                     {
-                        "id": "db657130943f3c9f4cc527b23a6a246b095f62673f2cc7fc906d5914678bd337",
+                        "id": "aHR0cDovL2JsYXJnLmV4YW1wbGUvdm9jYWIvYUNhcmRkZA==",
                         "type": "index-card",
                         "meta": {
                             "foaf:primaryTopic": [
@@ -224,7 +224,7 @@ class TestJsonapiSearchRenderer(_BaseJsonapiRendererTest, _base.TrovesearchJsonR
                         }
                     },
                     {
-                        "id": "4e6134629cc3117a123cee8a8dc633a46401c9725f01d63f689d7b84f2422359",
+                        "id": "aHR0cDovL2JsYXJnLmV4YW1wbGUvdm9jYWIvYUNhcmRk",
                         "type": "index-card",
                         "meta": {
                             "foaf:primaryTopic": [
