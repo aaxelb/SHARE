@@ -1,4 +1,5 @@
 import json
+from unittest import mock
 
 from trove.render.jsonapi import RdfJsonapiRenderer
 from trove.render._rendering import SimpleRendering
@@ -12,6 +13,12 @@ def _jsonapi_item_sortkey(jsonapi_item: dict):
 
 class _BaseJsonapiRendererTest(_base.TroveJsonRendererTests):
     renderer_class = RdfJsonapiRenderer
+
+    def setUp(self):
+        super().setUp()
+        self.enterContext(
+            mock.patch('trove.render.jsonapi.time.time_ns', return_value=112358)
+        )
 
     def _get_rendered_output(self, rendering):
         _json = super()._get_rendered_output(rendering)
@@ -98,7 +105,7 @@ class TestJsonapiSearchRenderer(_BaseJsonapiRendererTest, _base.TrovesearchJsonR
             mediatype='application/vnd.api+json',
             rendered_content=json.dumps({
                 "data": {
-                    "id": "79183793c0eea20ca6338d71c936deee113b94641ee77346fb66f9c4bcebfe0a",
+                    "id": "aHR0cDovL2JsYXJnLmV4YW1wbGUvdm9jYWIvYVNlYXJjaEZldw==",
                     "type": "index-card-search",
                     "attributes": {
                         "totalResultCount": 3
