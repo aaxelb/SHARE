@@ -178,7 +178,7 @@ class RdfJsonapiRenderer(BaseRenderer):
             if iri in _iri_namespace:
                 return primitive_rdf.iri_minus_namespace(iri, namespace=_iri_namespace)
         # as fallback, encode the iri into a valid jsonapi member name
-        return base64.urlsafe_b64encode(iri.encode())
+        return base64.urlsafe_b64encode(iri.encode()).decode()
 
     def _render_field(self, predicate_iri, object_set, *, into: dict):
         _is_relationship = (predicate_iri, RDF.type, JSONAPI_RELATIONSHIP) in self.thesaurus
