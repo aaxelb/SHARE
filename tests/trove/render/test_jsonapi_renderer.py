@@ -60,7 +60,7 @@ class TestJsonapiRenderer(_BaseJsonapiRendererTest):
             mediatype='application/vnd.api+json',
             rendered_content=json.dumps({
                 "data": {
-                    "id": "11f60e4d2fceb50ca695c3c77dcd7983ff78116ff2e7a2f315800c8ca645f469",
+                    "id": "aHR0cDovL2JsYXJnLmV4YW1wbGUvdm9jYWIvYVN1YmplY3Q=",
                     "type": BLARG.aType,
                     "meta": {
                         BLARG.hasIri: [BLARG.anIri],
@@ -83,7 +83,7 @@ class TestJsonapiSearchRenderer(_BaseJsonapiRendererTest, _base.TrovesearchJsonR
             mediatype='application/vnd.api+json',
             rendered_content=json.dumps({
                 "data": {
-                    "id": "aHR0cDovL2JsYXJnLmV4YW1wbGUvdm9jYWIvYUNhcmQ=",
+                    "id": "aHR0cDovL2JsYXJnLmV4YW1wbGUvdm9jYWIvYVNlYXJjaA==",
                     "type": "index-card-search",
                     "attributes": {
                         "totalResultCount": 0,

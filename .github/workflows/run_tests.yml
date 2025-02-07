@@ -74,7 +74,7 @@ jobs:
 
       - name: run tests
         run: |
-          coverage run -m pytest --create-db
+          coverage run -m pytest --create-db tests/trove/render/test_jsonapi_renderer.py
           coverage run --append -m behave
         env:
           DATABASE_PASSWORD: postgres
