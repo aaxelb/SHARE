@@ -28,7 +28,7 @@ class TestJsonapiRenderer(_BaseJsonapiRendererTest):
             mediatype='application/vnd.api+json',
             rendered_content=json.dumps({
                 "data": {
-                    "id": "68808d2c76cd5f7ff4e0f470592da8f02be1f615b05a143cc3821c5288e13f11",
+                    "id": "aHR0cDovL2JsYXJnLmV4YW1wbGUvdm9jYWIvYUNhcmQ=",
                     "type": "index-card",
                     "attributes": {
                         "resourceIdentifier": [
@@ -132,7 +132,7 @@ class TestJsonapiSearchRenderer(_BaseJsonapiRendererTest, _base.TrovesearchJsonR
                         "relationships": {
                             "indexCard": {
                                 "data": {
-                                    "id": "68808d2c76cd5f7ff4e0f470592da8f02be1f615b05a143cc3821c5288e13f11",
+                                    "id": "aHR0cDovL2JsYXJnLmV4YW1wbGUvdm9jYWIvYUNhcmQ=",
                                     "type": "index-card"
                                 }
                             }
@@ -163,7 +163,7 @@ class TestJsonapiSearchRenderer(_BaseJsonapiRendererTest, _base.TrovesearchJsonR
                         }
                     },
                     {
-                        "id": "68808d2c76cd5f7ff4e0f470592da8f02be1f615b05a143cc3821c5288e13f11",
+                        "id": "aHR0cDovL2JsYXJnLmV4YW1wbGUvdm9jYWIvYUNhcmQ=",
                         "type": "index-card",
                         "meta": {
                             "foaf:primaryTopic": [
