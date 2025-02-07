@@ -111,7 +111,7 @@ class TrovesearchDenormIndexStrategy(Elastic8IndexStrategy):
     def _index_settings(cls):
         return {
             'number_of_shards': 5,
-            'number_of_replicas': 2,
+            'number_of_replicas': 1,
         }
 
     @classmethod
