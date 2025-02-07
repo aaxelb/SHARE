@@ -83,7 +83,7 @@ class TestJsonapiSearchRenderer(_BaseJsonapiRendererTest, _base.TrovesearchJsonR
             mediatype='application/vnd.api+json',
             rendered_content=json.dumps({
                 "data": {
-                    "id": "4b79207d8ecd4817c36b75b16cee6c4a1874774cfbcfbd0caede339148403325",
+                    "id": "aHR0cDovL2JsYXJnLmV4YW1wbGUvdm9jYWIvYUNhcmQ=",
                     "type": "index-card-search",
                     "attributes": {
                         "totalResultCount": 0,
