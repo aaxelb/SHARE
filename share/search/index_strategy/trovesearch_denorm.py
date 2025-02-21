@@ -996,12 +996,14 @@ def task__delete_iri_value_scraps(
     from share.search.index_strategy import get_strategy
     _index_strategy = get_strategy(index_strategy_name)
     assert isinstance(_index_strategy, TrovesearchDenormIndexStrategy)
-    _irivalue_indexnames = {
+    _all_irivalue_indexnames = {
         _index.full_index_name
         for _index in _index_strategy.each_live_index(any_strategy_check=True)
         if _index.subname == 'iri_values'
-    }.intersection(indexnames)
+    }
+    _irivalue_indexnames = _all_irivalue_indexnames.intersection(indexnames)
     if not _irivalue_indexnames:
+        raise Exception(indexnames, _all_irivalue_indexnames)
         return
     # delete any docs that belong to cards in this chunk but weren't touched by indexing
     _delete_resp = _index_strategy.es8_client.delete_by_query(
