@@ -1,0 +1,47 @@
+
+## data provenance: why/what?
+
+- makes it possible to answer questions about the history of a given item's public metadata
+    - see how an item was described at a given time (including links/relations to other items)
+    - browse/compare past versions of an item's public metadata
+
+- built in to SHAREv2 from the start
+    - records gets stored before and after ingestion, in addition to getting indexed for search
+    - in practice, used mostly for re-ingesting data after revising or debugging normalization logic -- not surfaced in any frontend cos product (yet! might be worthwhile...)
+
+
+## ever-growing piles of history
+
+- `share.RawDatum`: metadata records from external systems stored as-is
+    - all updates from OSF since ~2017 to now (ongoing)
+    - all sharev2 harvests since ~2016 (now stopped -- anyone interested in nine years of metadata records of inconsistent quality?)
+
+- `trove.ArchivedIndexcardRdf`: metadata extracted from records sent to `/trove/ingest`
+    - past versions of all public osf objects since ~2023 (ongoing)
+    - excludes "supplementary" metadata like monthly usage metrics
+
+
+## possibilities to reduce postgres storage (while maintaining some kind of history)
+
+- drop `share.RawDatum` altogether (large reduction)
+    - update `trove.digestive_tract.swallow` to store datums somewhere temporary
+    - update `trove.digestive_tract.extract` to delete original after success
+    - extracted RDF metadata (stored in `IndexcardRdf` models) become the earliest repeatable starting point for re-ingestion
+        - if we ever change `extract` in breaking ways, cannot easily apply retroactively -- would have to re-send records from the source (e.g. `osf.management.commands.recatalog_metadata`)
+        - this is probably fine... trove "extract" mostly just parses some standard RDF serialization; unlikely to need to re-extract
+    - note: currently, history of "supplementary" metadata stored only in `share.RawDatum` -- should either:
+        - include supplementary metadata in `trove.ArchivedIndexcardRdf`,
+        - archive supplementary metadata separately,
+        - or decide to keep history for only non-supplementary "descriptive" metadata
+
+- replace `trove.ArchivedIndexcardRdf` (and `share.RawDatum`, if not dropped) with content-addressed cloud-blob storage (medium reduction; large over time)
+    - store reference/checksum in postgres; fetch content only when needed
+    - open q: which cloud, and how?
+    - careful of raising botscrape costs -- constrain/cache api access to historical metadata
+        - open q: how much is ok? how much is too much?
+
+- fewer `trove.ArchivedIndexcardRdf`, whether in postgres or cloud-blobs (small reduction; medium over time)
+    - instead of keeping every update, keep only one per (minute/hour/day/...)?
+        - downside: quickly-undone changes may be omitted from history
+    - instead of keeping whole records, keep only diff from prior update?
+        - downside: more complicated to reconstruct; easier to misplace data
