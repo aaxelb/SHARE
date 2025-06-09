@@ -25,12 +25,4 @@ class Migration(migrations.Migration):
             name='expiration_date',
             field=models.DateField(blank=True, help_text='An (optional) date when this description will no longer be valid.', null=True),
         ),
-        migrations.AddIndex(
-            model_name='latestindexcardrdf',
-            index=models.Index(fields=['expiration_date'], name='trove_lates_expirat_92ac89_idx'),
-        ),
-        migrations.AddIndex(
-            model_name='supplementaryindexcardrdf',
-            index=models.Index(fields=['expiration_date'], name='trove_suppl_expirat_3ea6e1_idx'),
-        ),
     ]
