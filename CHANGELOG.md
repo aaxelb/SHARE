@@ -1,5 +1,9 @@
 # Change Log
 
+# [25.6.1] - 2025-12-08
+- bump `django` to 5.2.8
+- fix: cap length for elasticsearch document id
+
 # [25.6.0] - 2025-10-30
 - bump dependencies
     - `celery` to 5.5.3
