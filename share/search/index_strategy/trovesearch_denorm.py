@@ -2,6 +2,7 @@ from __future__ import annotations
 from collections import abc, defaultdict
 import dataclasses
 import functools
+import hashlib
 import itertools
 import json
 import logging
@@ -374,7 +375,7 @@ class TrovesearchDenormIndexStrategy(Elastic8IndexStrategy):
             return (
                 _card_pk
                 if value_iri is None
-                else f'{_card_pk}-{ts.b64(value_iri)}'
+                else f'{_card_pk}-{hashlib.sha256(value_iri.encode()).hexdigest()}'
             )
 
         @functools.cached_property
