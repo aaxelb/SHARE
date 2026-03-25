@@ -26,7 +26,7 @@ dependencies = [
     "rdflib==7.1.3",  # BSD 3 Clause
     "requests==2.32.3",  # Apache 2.0
     "primitive_metadata==0.2025.1",  # MIT
-    "sentry-sdk[django]==2.24.1",  # MIT
+    "sentry-sdk[django]==2.55.0",  # MIT
 
     # to be removed in near-future work:
     "djangorestframework==3.16.0",  # BSD
