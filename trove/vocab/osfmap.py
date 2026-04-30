@@ -1,8 +1,5 @@
 from __future__ import annotations
-import typing
 import functools
-if typing.TYPE_CHECKING:
-    from collections.abc import Iterator
 
 from primitive_metadata.primitive_rdf import (
     literal,
@@ -15,13 +12,9 @@ from share.models.feature_flag import FeatureFlag
 from trove.util.propertypath import (
     Propertypath,
     PropertypathSet,
-    parse_propertypath,
     propertypath_key,
 )
-from trove.util.queryparams import (
-    join_queryparam_value,
-    split_queryparam_value,
-)
+from trove.util.queryparams import join_queryparam_value
 from trove.util.shorthand import build_shorthand_from_thesaurus
 from trove.vocab.jsonapi import JSONAPI_MEMBERNAME
 from trove.vocab.namespaces import (
@@ -997,15 +990,6 @@ def osfmap_json_shorthand() -> IriShorthand:
         label_predicate=JSONAPI_MEMBERNAME,
         base_shorthand=namespaces_shorthand(),
     )
-
-
-def parse_osfmap_propertypath(serialized_path: str, *, allow_globs: bool = False) -> Propertypath:
-    return parse_propertypath(serialized_path, osfmap_json_shorthand(), allow_globs=allow_globs)
-
-
-def parse_osfmap_propertypath_set(serialized_path_set: str, *, allow_globs: bool = False) -> Iterator[Propertypath]:
-    for _path in split_queryparam_value(serialized_path_set):
-        yield parse_osfmap_propertypath(_path, allow_globs=allow_globs)
 
 
 def osfmap_propertypath_key(propertypath: Propertypath) -> str:

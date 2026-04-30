@@ -220,7 +220,7 @@ class CommonTrovesearchTests(RealElasticTestCase):
         # test sort order only when expected results are ordered
         if isinstance(expected_focus_iris, set):
             _actual_result_iris = set(_actual_result_iris)
-        self.assertEqual(expected_focus_iris, _actual_result_iris, msg=f'?{_querystring}')
+        self.assertEqual(expected_focus_iris, _actual_result_iris, msg=f'\nqueryparams={queryparams!r}')
 
     def _assert_valuesearch_values(self, queryparams, expected_values):
         _querystring = urlencode(queryparams)
@@ -235,6 +235,7 @@ class CommonTrovesearchTests(RealElasticTestCase):
         self.assertEqual(expected_values, _actual_values, msg=f'?{_querystring}')
 
     def _fill_test_data_for_querying(self):
+        _FOO = rdf.IriNamespace('foo://my.example/vocab/')
         _card_a = self._create_indexcard(BLARG.a, {
             RDF.type: {BLARG.Thing},
             OWL.sameAs: {BLARG.a_same, BLARG.a_same2},
@@ -244,6 +245,7 @@ class CommonTrovesearchTests(RealElasticTestCase):
             DCTERMS.subject: {BLARG.subj_ac, BLARG.subj_a},
             DCTERMS.references: {BLARG.b, BLARG.c},
             DCTERMS.description: {rdf.literal('This place is not a place of honor... no highly esteemed deed is commemorated here... nothing valued is here.', language='en')},
+            _FOO.prop: {_FOO.valA},
         }, rdf_tripledict={
             BLARG.someone: {
                 FOAF.name: {rdf.literal('some one')},
@@ -269,6 +271,12 @@ class CommonTrovesearchTests(RealElasticTestCase):
             DCTERMS.subject: {BLARG.subj_b, BLARG.subj_bc},
             DCTERMS.references: {BLARG.c},
             DCTERMS.description: {rdf.literal('What is here was dangerous and repulsive to us. This message is a warning about danger. ', language='en')},
+            _FOO.hasBlank: {
+                rdf.blanknode({
+                    _FOO.textProp: {rdf.literal('fooBlankPropVal')},
+                    _FOO.prop: {_FOO.valB},
+                }),
+            },
         }, rdf_tripledict={
             BLARG.someone: {
                 FOAF.name: {rdf.literal('some one')},
@@ -472,6 +480,35 @@ class CommonTrovesearchTests(RealElasticTestCase):
             {'cardSearchText': '"what is here"'},
             {BLARG.b},
         )
+        yield (
+            {
+                'iriShorthand[fooo]': 'foo://my.example/vocab/',
+                'cardSearchFilter[fooo:prop]': 'fooo:valA',
+            },
+            {BLARG.a},
+        )
+        yield (
+            {
+                'iriShorthand[myvocab]': 'foo://my.example/vocab/',
+                'cardSearchFilter[myvocab:hasBlank][is-present]': '',
+            },
+            {BLARG.b},
+        )
+        yield (
+            {
+                'iriShorthand[myvocab]': 'foo://my.example/vocab/',
+                'cardSearchFilter[myvocab:hasBlank.myvocab:prop]': 'myvocab:valB',
+            },
+            {BLARG.b},
+        )
+        yield (
+            {
+                'iriShorthand[foob]': 'foo://my.example/vocab/hasBlank',
+                'iriShorthand[foot]': 'foo://my.example/vocab/textProp',
+                'cardSearchText[foob.foot]': 'fooBlankPropVal',
+            },
+            {BLARG.b},
+        )
         yield from self.cardsearch_trailingslash_cases()
         yield from self.cardsearch_integer_cases()
 
@@ -519,6 +556,27 @@ class CommonTrovesearchTests(RealElasticTestCase):
                 'valueSearchText': 'bbbb',
             },
             {BLARG.b},
+        )
+        yield (
+            {
+                'iriShorthand[myprop]': 'foo://my.example/vocab/prop',
+                'valueSearchPropertyPath': 'myprop',
+            },
+            {'foo://my.example/vocab/valA'},
+        )
+        yield (
+            {
+                'iriShorthand[myvocab]': 'foo://my.example/vocab/',
+                'valueSearchPropertyPath': 'myvocab:prop',
+            },
+            {'foo://my.example/vocab/valA'},
+        )
+        yield (
+            {
+                'iriShorthand[myvocab]': 'foo://my.example/vocab/',
+                'valueSearchPropertyPath': 'myvocab:hasBlank.myvocab:prop',
+            },
+            {'foo://my.example/vocab/valB'},
         )
         yield from self.valuesearch_trailingslash_cases()
         yield from self.valuesearch_sameas_cases()

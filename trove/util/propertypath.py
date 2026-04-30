@@ -1,8 +1,10 @@
+import collections
 import urllib
 
 from primitive_metadata import primitive_rdf as rdf
 
 from trove import exceptions as trove_exceptions
+from trove.util.queryparams import split_queryparam_value
 
 
 ###
@@ -48,6 +50,7 @@ def make_globpath(length: int) -> Propertypath:
 def parse_propertypath(
     serialized_path: str,
     shorthand: rdf.IriShorthand,
+    *,
     allow_globs: bool = False,
 ) -> Propertypath:
     _path = tuple(
@@ -63,6 +66,16 @@ def parse_propertypath(
                 f'path must be all * or no * (got {serialized_path})',
             )
     return _path
+
+
+def parse_propertypath_set(
+    serialized_path_set: str,
+    shorthand: rdf.IriShorthand,
+    *,
+    allow_globs: bool = False,
+) -> collections.abc.Iterator[Propertypath]:
+    for _path in split_queryparam_value(serialized_path_set):
+        yield parse_propertypath(_path, shorthand, allow_globs=allow_globs)
 
 
 def propertypathstep_key(
@@ -83,3 +96,20 @@ def propertypath_key(
         propertypathstep_key(_pathstep, shorthand)
         for _pathstep in path
     )
+
+
+def each_subpath(path: Propertypath) -> collections.abc.Iterator[Propertypath]:
+    '''
+    >>> list(each_subpath(('a', 'b', 'c', 'd', 'e')))
+    [('a',),
+    ('a', 'b'),
+    ('a', 'b', 'c'),
+    ('a', 'b', 'c', 'd'),
+    ('a', 'b', 'c', 'd', 'e')]
+    >>> list(each_subpath(()))
+    []
+    '''
+    for _subpath_len in range(1, len(path) + 1):
+        _subpath = path[:_subpath_len]
+        if _subpath:
+            yield _subpath

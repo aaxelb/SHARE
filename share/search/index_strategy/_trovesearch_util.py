@@ -18,6 +18,7 @@ from trove.trovesearch.search_params import (
     Propertypath,
 )
 from trove.util.iris import get_sufficiently_unique_iri, is_worthwhile_iri
+from trove.util.propertypath import each_subpath
 from trove.vocab.namespaces import (
     OWL,
     RDF,
@@ -141,7 +142,6 @@ class GraphWalk:
 
     def __post_init__(self):
         for _walk_path, _walk_obj in self._walk_from_subject(self.focus_iri):
-            self.paths_walked.add(_walk_path)
             if isinstance(_walk_obj, datetime.date):
                 self.date_values[_walk_path].add(_walk_obj)
             elif osfmap.is_date_property(_walk_path[-1]):  # note: osfmap-specific
@@ -213,6 +213,7 @@ class GraphWalk:
             _twoples = self.rdfdoc.tripledict.get(iri, {})
             for _next_steps, _obj in walk_twoples(_twoples):
                 _path = (*path_so_far, *_next_steps)
+                self.paths_walked.update(each_subpath(_path))
                 if isinstance(_obj, str):  # IRI
                     if self._should_keep_related_resource(_path, _obj):
                         yield (_path, _obj)
