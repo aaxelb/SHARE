@@ -8,23 +8,24 @@ from trove.trovesearch.search_params import (
 )
 from trove.util.queryparams import QueryparamName, queryparams_from_querystring
 from trove.vocab.namespaces import OSFMAP, RDF, DCTERMS
+from trove.vocab.osfmap import osfmap_json_shorthand
 
 
 class TestSearchText(SimpleTestCase):
     def test_from_queryparam_family_with_empty_value(self):
         _qp = queryparams_from_querystring('myBlargText[foo]=')
-        result = SearchText.from_queryparam_family(_qp, 'myBlargText')
+        result = SearchText.from_queryparam_family(_qp, 'myBlargText', osfmap_json_shorthand())
         self.assertEqual(result, frozenset())
 
     def test_single_word(self):
         qp = queryparams_from_querystring('myBlargText=word')
-        (st,) = SearchText.from_queryparam_family(qp, 'myBlargText')
+        (st,) = SearchText.from_queryparam_family(qp, 'myBlargText', osfmap_json_shorthand())
         self.assertEqual(st.text, "word")
         self.assertEqual(st.propertypath_set, DEFAULT_PROPERTYPATH_SET)
 
     def test_multiple_words(self):
         qp = queryparams_from_querystring('myBlargText=apple&myBlargText=banana&myBlargText=cherry&anotherText=no')
-        result = SearchText.from_queryparam_family(qp, 'myBlargText')
+        result = SearchText.from_queryparam_family(qp, 'myBlargText', osfmap_json_shorthand())
         self.assertEqual(result, {SearchText('apple'), SearchText('banana'), SearchText('cherry')})
 
     def test_text_with_spaces(self):
@@ -35,15 +36,27 @@ class TestSearchText(SimpleTestCase):
         ]
         for phrase in phrases:
             qp = queryparams_from_querystring(urllib.parse.urlencode({'myBlargText': phrase}))
-            (st,) = SearchText.from_queryparam_family(qp, 'myBlargText')
+            (st,) = SearchText.from_queryparam_family(qp, 'myBlargText', osfmap_json_shorthand())
             self.assertEqual(st.text, phrase)
             self.assertEqual(st.propertypath_set, DEFAULT_PROPERTYPATH_SET)
 
-    def test_custom_propertypath_set(self):
+    def test_with_propertypath_set(self):
         qp = queryparams_from_querystring('myBlargText[title]=foo')
-        result = SearchText.from_queryparam_family(qp, 'myBlargText')
+        result = SearchText.from_queryparam_family(qp, 'myBlargText', osfmap_json_shorthand())
         self.assertEqual(result, {
             SearchText('foo', frozenset({(DCTERMS.title,)}))
+        })
+
+    def test_with_shorthand(self):
+        qp = queryparams_from_querystring('myBlargText[a]=foo&myBlargText[b:blarg]=bar')
+        _shorthand = osfmap_json_shorthand().with_update({
+            'a': 'https://vocab.example/a',
+            'b': 'https://vocab.example/b/',
+        })
+        result = SearchText.from_queryparam_family(qp, 'myBlargText', _shorthand)
+        self.assertEqual(result, {
+            SearchText('foo', frozenset({('https://vocab.example/a',)})),
+            SearchText('bar', frozenset({('https://vocab.example/b/blarg',)})),
         })
 
 
@@ -115,5 +128,6 @@ class TestSearchFilterPath(SimpleTestCase):
             _actualfilter = SearchFilter.from_filter_param(
                 QueryparamName.from_str(_paramname),
                 _paramvalue,
+                osfmap_json_shorthand(),
             )
             self.assertEqual(_expectedfilter, _actualfilter)

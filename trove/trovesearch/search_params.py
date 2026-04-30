@@ -25,6 +25,8 @@ from trove.util.propertypath import (
     PropertypathSet,
     Propertypath,
     is_globpath,
+    parse_propertypath,
+    parse_propertypath_set,
 )
 from trove.util.trove_params import BasicTroveParams
 from trove.util.queryparams import (
@@ -142,21 +144,21 @@ class SearchText:
     propertypath_set: PropertypathSet = DEFAULT_PROPERTYPATH_SET
 
     @classmethod
-    def from_queryparam_family(cls, queryparams: QueryparamDict, queryparam_family: str) -> frozenset[typing.Self]:
-        return frozenset(cls.iter_from_queryparam_family(queryparams, queryparam_family))
+    def from_queryparam_family(cls, queryparams: QueryparamDict, queryparam_family: str, shorthand: IriShorthand) -> frozenset[typing.Self]:
+        return frozenset(cls.iter_from_queryparam_family(queryparams, queryparam_family, shorthand))
 
     @classmethod
-    def iter_from_queryparam_family(cls, queryparams: QueryparamDict, queryparam_family: str) -> Generator[typing.Self]:
+    def iter_from_queryparam_family(cls, queryparams: QueryparamDict, queryparam_family: str, shorthand: IriShorthand) -> Generator[typing.Self]:
         for (_param_name, _param_value) in queryparams.get(queryparam_family, ()):
             if _param_value:
-                _searchtext = cls.from_searchtext_param_or_none(_param_name, _param_value)
+                _searchtext = cls.from_searchtext_param_or_none(_param_name, _param_value, shorthand)
                 if _searchtext is not None:
                     yield _searchtext
 
     @classmethod
-    def from_searchtext_param_or_none(cls, param_name: QueryparamName, param_value: str) -> typing.Self | None:
+    def from_searchtext_param_or_none(cls, param_name: QueryparamName, param_value: str, shorthand: IriShorthand) -> typing.Self | None:
         _propertypath_set = (
-            frozenset(osfmap.parse_osfmap_propertypath_set(param_name.bracketed_names[0], allow_globs=True))
+            frozenset(parse_propertypath_set(param_name.bracketed_names[0], shorthand, allow_globs=True))
             if param_name.bracketed_names
             else None
         )
@@ -219,15 +221,15 @@ class SearchFilter:
     propertypath_set: PropertypathSet = DEFAULT_PROPERTYPATH_SET
 
     @classmethod
-    def from_queryparam_family(cls, queryparams: QueryparamDict, queryparam_family: str) -> frozenset[typing.Self]:
+    def from_queryparam_family(cls, queryparams: QueryparamDict, queryparam_family: str, shorthand: IriShorthand) -> frozenset[typing.Self]:
         return frozenset(
-            cls.from_filter_param(param_name, param_value)
+            cls.from_filter_param(param_name, param_value, shorthand)
             for (param_name, param_value)
             in queryparams.get(queryparam_family, ())
         )
 
     @classmethod
-    def from_filter_param(cls, param_name: QueryparamName, param_value: str) -> typing.Self:
+    def from_filter_param(cls, param_name: QueryparamName, param_value: str, shorthand: IriShorthand) -> typing.Self:
         _operator = None
         try:  # "filter[<serialized_path_set>][<operator>]"
             (_serialized_path_set, _operator_value) = param_name.bracketed_names
@@ -248,7 +250,7 @@ class SearchFilter:
                         str(param_name),
                         f'unknown filter operator "{_operator_value}"',
                     )
-        _propertypath_set = frozenset(osfmap.parse_osfmap_propertypath_set(_serialized_path_set))
+        _propertypath_set = frozenset(parse_propertypath_set(_serialized_path_set, shorthand))
         _is_date_filter = all(
             osfmap.is_date_property(_path[-1])
             for _path in _propertypath_set
@@ -270,7 +272,7 @@ class SearchFilter:
                 if _is_date_filter:
                     _value_list.append(_value)  # TODO: vali-date
                 else:
-                    _value_list.append(osfmap.osfmap_json_shorthand().expand_iri(_value))
+                    _value_list.append(shorthand.expand_iri(_value))
         return cls(
             value_set=frozenset(_value_list),
             operator=_operator,
@@ -312,9 +314,9 @@ class SortParam:
     descending: bool
 
     @classmethod
-    def from_sort_queryparams(cls, queryparams: QueryparamDict) -> tuple[SortParam, ...]:
+    def from_sort_queryparams(cls, queryparams: QueryparamDict, shorthand: IriShorthand) -> tuple[SortParam, ...]:
         return tuple(filter(None, (
-            cls._from_sort_queryparam(_param_name, _param_value)
+            cls._from_sort_queryparam(_param_name, _param_value, shorthand)
             for (_param_name, _param_value)
             in queryparams.get('sort', ())
         )))
@@ -324,6 +326,7 @@ class SortParam:
         cls,
         param_name: QueryparamName,
         param_value: str,
+        shorthand: IriShorthand,
     ) -> SortParam | None:
         if not param_value or param_value == '-relevance':
             return None
@@ -343,7 +346,7 @@ class SortParam:
                 ))
         _descending = param_value.startswith(DESCENDING_SORT_PREFIX)
         _rawpath = param_value.lstrip(DESCENDING_SORT_PREFIX)
-        _path = osfmap.parse_osfmap_propertypath(_rawpath)
+        _path = parse_propertypath(_rawpath, shorthand)
         return cls(
             value_type=_value_type,
             propertypath=_path,
@@ -388,13 +391,15 @@ class CardsearchParams(TrovesearchParams):
 
     @classmethod
     def parse_queryparams(cls, queryparams: QueryparamDict) -> dict[str, typing.Any]:
-        _filter_set = SearchFilter.from_queryparam_family(queryparams, 'cardSearchFilter')
+        _super_params = super().parse_queryparams(queryparams)
+        _shorthand = _super_params['iri_shorthand']
+        _filter_set = SearchFilter.from_queryparam_family(queryparams, 'cardSearchFilter', _shorthand)
         return {
-            **super().parse_queryparams(queryparams),
-            'cardsearch_searchtext': SearchText.from_queryparam_family(queryparams, 'cardSearchText'),
+            **_super_params,
+            'cardsearch_searchtext': SearchText.from_queryparam_family(queryparams, 'cardSearchText', _shorthand),
             'cardsearch_filter_set': _filter_set,
             'index_strategy_name': get_single_value(queryparams, 'indexStrategy'),
-            'sort_list': SortParam.from_sort_queryparams(queryparams),
+            'sort_list': SortParam.from_sort_queryparams(queryparams, _shorthand),
             'page_cursor': _get_page_cursor(queryparams),
         }
 
@@ -461,11 +466,13 @@ class ValuesearchParams(CardsearchParams):
         _raw_propertypath = get_single_value(queryparams, 'valueSearchPropertyPath')
         if not _raw_propertypath:
             raise trove_exceptions.MissingRequiredQueryParam('valueSearchPropertyPath')
+        _super_params = super().parse_queryparams(queryparams)
+        _shorthand = _super_params['iri_shorthand']
         return {
-            **super().parse_queryparams(queryparams),
-            'valuesearch_propertypath': osfmap.parse_osfmap_propertypath(_raw_propertypath),
-            'valuesearch_searchtext': SearchText.from_queryparam_family(queryparams, 'valueSearchText'),
-            'valuesearch_filter_set': SearchFilter.from_queryparam_family(queryparams, 'valueSearchFilter'),
+            **_super_params,
+            'valuesearch_propertypath': parse_propertypath(_raw_propertypath, _shorthand),
+            'valuesearch_searchtext': SearchText.from_queryparam_family(queryparams, 'valueSearchText', _shorthand),
+            'valuesearch_filter_set': SearchFilter.from_queryparam_family(queryparams, 'valueSearchFilter', _shorthand),
         }
 
     def __post_init__(self) -> None:
