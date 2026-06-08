@@ -6,7 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('share', '0070_sourceuniqueidentifier_focus_identifier'),
+        ('share', '0069_rawdatum_mediatype'),
     ]
 
     operations = [

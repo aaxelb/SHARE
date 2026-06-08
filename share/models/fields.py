@@ -2,10 +2,7 @@ import datetime
 import json
 from decimal import Decimal
 
-import jwe
-
 from django import forms
-from django.conf import settings
 from django.core import validators
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
@@ -76,31 +73,3 @@ class ShareURLField(models.TextField):
             defaults['empty_value'] = None
         defaults.update(kwargs)
         return super(ShareURLField, self).formfield(**defaults)
-
-
-# TODO: remove after migrations have been fully squashed
-class EncryptedJSONField(models.BinaryField):
-    """
-    This field transparently encrypts data in the database. It should probably only be used with PG unless
-    the user takes into account the db specific trade-offs with TextFields.
-    """
-    prefix = b'jwe:::'
-
-    def get_db_prep_value(self, input_json, **kwargs):  # type: ignore[override]
-        if not input_json:
-            return None
-
-        input_json = self.prefix + jwe.encrypt(json.dumps(input_json).encode('utf-8'), settings.SENSITIVE_DATA_KEY)
-
-        return input_json
-
-    def to_python(self, output_json):
-        if not output_json:
-            return None
-
-        output_json = json.loads(jwe.decrypt(bytes(output_json[len(self.prefix):]), settings.SENSITIVE_DATA_KEY).decode('utf-8'))
-
-        return output_json
-
-    def from_db_value(self, value, expression, connection):
-        return self.to_python(value)

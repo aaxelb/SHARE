@@ -1594,20 +1594,6 @@ files = [
 ]
 
 [[package]]
-name = "pyjwe"
-version = "1.0.0"
-description = "JSON Web Encryption implementation in Python"
-optional = false
-python-versions = "*"
-groups = ["main"]
-files = [
-    {file = "PyJWE-1.0.0.tar.gz", hash = "sha256:e3b3de7be4fcc260e5f1a47ead9c9a9211d8ce98f9e1d88d9a7225198aa9ce47"},
-]
-
-[package.dependencies]
-cryptography = ">=0.9.3"
-
-[[package]]
 name = "pyparsing"
 version = "3.2.3"
 description = "pyparsing module - Classes and methods to define and execute parsing grammars"
@@ -2040,4 +2026,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13,<3.14"
-content-hash = "f808d7127c165f3a3f4734b2aeb063cbb049c7b93eaef608927e1fe30e183bdc"
+content-hash = "9486470a30871af1d9b7b78e6b809e241442df95028e0628e399df724a083186"

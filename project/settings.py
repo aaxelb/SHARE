@@ -13,7 +13,6 @@ https://docs.djangoproject.com/en/1.9/ref/settings/
 import os
 
 from celery.schedules import crontab
-import jwe
 
 from share.version import get_shtrove_version
 from trove.util.queryparams import parse_booly_str
@@ -34,10 +33,6 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.environ.get('SECRET_KEY', 'c^0=k9r3i2@kh=*=(w2r_-sc#fd!+b23y%)gs+^0l%=bt_dst0')
-
-SALT = os.environ.get('SALT', 'r_-78y%c^(w2_ds0d*=t!+c=s+^0l=bt%2isc#f2@kh=0k5r)g')
-
-SENSITIVE_DATA_KEY = jwe.kdf(SECRET_KEY.encode('utf-8'), SALT.encode('utf-8'))
 
 
 # SECURITY WARNING: don't run with debug turned on in production!

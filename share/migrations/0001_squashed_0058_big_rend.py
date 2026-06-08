@@ -415,12 +415,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='sourceconfig',
             name='private_harvester_kwargs',
-            field=share.models.fields.EncryptedJSONField(blank=True, null=True),
+            field=share.models._old.EncryptedJSONField(blank=True, null=True),
         ),
         migrations.AddField(
             model_name='sourceconfig',
             name='private_transformer_kwargs',
-            field=share.models.fields.EncryptedJSONField(blank=True, null=True),
+            field=share.models._old.EncryptedJSONField(blank=True, null=True),
         ),
         migrations.CreateModel(
             name='IngestJob',

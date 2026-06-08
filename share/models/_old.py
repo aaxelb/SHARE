@@ -7,3 +7,7 @@ def icon_name():
 
 def SourceIconStorage():
     ...  # removed; stub for past migrations only
+
+
+def EncryptedJSONField(**kwargs):
+    ...  # removed; stub for past migrations only
